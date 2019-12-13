@@ -3,6 +3,8 @@
 # Setting for debug purposes
 set -exuo pipefail
 
+THEUSER=$(whoami)
+echo "Script running as user: $THEUSER."
 
 # Allows for building directly from pipeline or trigger
 if [[ $BUILDKITE_TRIGGERED_FROM_BUILD_ID ]]
