@@ -9,7 +9,7 @@ then
   buildkite-agent artifact download "dist/*.whl" . --build $LE_TRIGGERED_FROM_BUILD_ID
   if [[ -z $BUILDKITE_TRIGGERED_FROM_BUILD_ID ]]
   then
-    buildkite-agent annotate "This is a rebuild from a triggered build. Using parent's whl" --style warning 
+    buildkite-agent annotate "This is a rebuild from a triggered build. Using parent's whl" --style warning
   fi
 elif [[ $BUILDKITE_TRIGGERED_FROM_BUILD_ID ]]
 then
@@ -32,14 +32,14 @@ rm -rf ./src/kolibri/dist/enum
 
 
 echo "Downloading deps"
-pipenv sync --dev 
+pipenv sync --dev
 
 echo "--- Build .app"
 
 # Sets the environment variable needed for the build to find packages in from whl
 echo "PYTHONPATH=$PWD/src/kolibri/dist" > .env
 
-# Putting output in file, errors stil log to stderr 
+# Putting output in file, errors stil log to stderr
 mkdir -p logs
 
 # compile message catalogs
@@ -72,5 +72,8 @@ fi
 
 # Always upload to the local build too. Makes things less confusing.
 buildkite-agent artifact upload "dist/kolibri*.dmg"
+
+export BUILDKITE_GCS_ACL=private
+buildkite-agent artifact upload "dist/kolibri*.dmg"  gs://le-buildkite/test/$BUILDKITE_JOB_ID
 
 # TODO upload directly to google cloud
