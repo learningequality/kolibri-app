@@ -1,9 +1,27 @@
 import json
 import logging
 import os
+import socket
 from collections import Mapping
+from contextlib import closing
 
 from config import KOLIBRI_PORT
+
+PORTS_TO_CHECK = [KOLIBRI_PORT, 8008, 8080, 8000, 80]
+
+
+def find_first_open_port(port_list):
+    for port in port_list:
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+            res = sock.connect_ex(('localhost', port))
+            # connecting to the port successfully means it's being used, so
+            # return success for error codes instead.
+            if res != 0:
+                return port
+            else:
+                logging.info("Port {} occupied.".format(port))
+
+    return None
 
 
 def start_kolibri_server():
@@ -12,7 +30,9 @@ def start_kolibri_server():
 
     registered_plugins.register_plugins(['kolibri.plugins.app'])
 
-    logging.info("Starting server...")
+    KOLIBRI_PORT = find_first_open_port(PORTS_TO_CHECK)
+
+    logging.info("Starting server on port {}...".format(KOLIBRI_PORT))
     setup_logging(debug=False)
     initialize()
     automatic_provisiondevice()
