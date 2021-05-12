@@ -68,7 +68,7 @@ locale_root_dir = os.path.join(root_dir, 'locale')
 sys.path.insert(0, extra_python_path)
 sys.path.insert(0, os.path.join(extra_python_path, "kolibri", "dist"))
 
-from config import KOLIBRI_PORT
+import config
 
 import pew
 import pew.ui
@@ -89,14 +89,15 @@ if pew.ui.platform == "android":
     os.environ['KOLIBRI_STATIC_USE_SYMLINKS'] = "False"
 
 
-KOLIBRI_ROOT_URL = 'http://localhost:{}'.format(KOLIBRI_PORT)
+KOLIBRI_ROOT_URL = 'http://localhost:{}'.format(config.KOLIBRI_PORT)
 os.environ["DJANGO_SETTINGS_MODULE"] = "kolibri.deployment.default.settings.base"
 
 app_data_dir = pew.get_app_files_dir()
 os.makedirs(app_data_dir, exist_ok=True)
 
+
 if not 'KOLIBRI_HOME' in os.environ:
-    kolibri_home = os.path.join(os.path.expanduser("~"), ".endless-key")
+    kolibri_home = config.DEFAULT_KOLIBRI_HOME
 
     if sys.platform == 'darwin':
         # In macOS we must look for the folder that's along side Kolibri.app
@@ -119,8 +120,9 @@ if not 'KOLIBRI_HOME' in os.environ:
     os.environ["KOLIBRI_HOME"] = kolibri_home
 
 
+os.environ["KOLIBRI_CONTENT_FALLBACK_DIRS"] = config.get_content_fallback_dirs()
 # move in a templated Kolibri data directory, including pre-migrated DB, to speed up startup
-HOME_TEMPLATE_PATH = "assets/preseeded_kolibri_home"
+HOME_TEMPLATE_PATH = config.HOME_TEMPLATE_PATH
 HOME_PATH = os.environ["KOLIBRI_HOME"]
 if not os.path.exists(HOME_PATH) and os.path.exists(HOME_TEMPLATE_PATH):
     shutil.copytree(HOME_TEMPLATE_PATH, HOME_PATH)
@@ -179,7 +181,6 @@ logging.info("Locale info = {}".format(locale_info))
 
 from kolibri_tools.utils import get_initialize_url
 from kolibri_tools.utils import start_kolibri_server
-from kolibri_tools.utils import prepare_endless_key
 
 
 class MenuEventHandler:
@@ -288,7 +289,7 @@ class Application(pew.ui.PEWApp):
 
         # start server
         self.server_thread = None
-        self.port = KOLIBRI_PORT
+        self.port = config.KOLIBRI_PORT
         self.start_server()
 
         self.load_thread = pew.ui.PEWThread(target=self.wait_for_server)
@@ -314,7 +315,6 @@ class Application(pew.ui.PEWApp):
                 del self.server_thread
 
             logging.info("Preparing to start Kolibri server...")
-            prepare_endless_key()
             self.server_thread = pew.ui.PEWThread(target=start_kolibri_server)
             self.server_thread.daemon = True
             self.server_thread.start()
