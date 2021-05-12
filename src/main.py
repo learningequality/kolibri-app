@@ -179,6 +179,7 @@ logging.info("Locale info = {}".format(locale_info))
 
 from kolibri_tools.utils import get_initialize_url
 from kolibri_tools.utils import start_kolibri_server
+from kolibri_tools.utils import prepare_endless_key
 
 
 class MenuEventHandler:
@@ -313,6 +314,7 @@ class Application(pew.ui.PEWApp):
                 del self.server_thread
 
             logging.info("Preparing to start Kolibri server...")
+            prepare_endless_key()
             self.server_thread = pew.ui.PEWThread(target=start_kolibri_server)
             self.server_thread.daemon = True
             self.server_thread.start()
