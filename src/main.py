@@ -96,7 +96,7 @@ app_data_dir = pew.get_app_files_dir()
 os.makedirs(app_data_dir, exist_ok=True)
 
 if not 'KOLIBRI_HOME' in os.environ:
-    kolibri_home = os.path.join(os.path.expanduser("~"), ".kolibri")
+    kolibri_home = os.path.join(os.path.expanduser("~"), ".endless-key")
 
     if sys.platform == 'darwin':
         # In macOS we must look for the folder that's along side Kolibri.app
