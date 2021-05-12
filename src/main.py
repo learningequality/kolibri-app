@@ -119,8 +119,18 @@ if not 'KOLIBRI_HOME' in os.environ:
     os.environ["KOLIBRI_HOME"] = kolibri_home
 
 
+HOME_TEMPLATE_PATH = 'assets/preseeded_kolibri_home'
+
+from kolibri_tools.utils import get_key_drive
+key_drive = get_key_drive()
+if key_drive:
+    fallback_dirs = os.path.join(key_drive.datafolder, 'content')
+    os.environ["KOLIBRI_CONTENT_FALLBACK_DIRS"] = fallback_dirs
+    template = os.path.join(key_drive.datafolder, 'preseeded_kolibri_home')
+    if os.path.isdir(template):
+        HOME_TEMPLATE_PATH = template
+
 # move in a templated Kolibri data directory, including pre-migrated DB, to speed up startup
-HOME_TEMPLATE_PATH = "assets/preseeded_kolibri_home"
 HOME_PATH = os.environ["KOLIBRI_HOME"]
 if not os.path.exists(HOME_PATH) and os.path.exists(HOME_TEMPLATE_PATH):
     shutil.copytree(HOME_TEMPLATE_PATH, HOME_PATH)
@@ -179,7 +189,6 @@ logging.info("Locale info = {}".format(locale_info))
 
 from kolibri_tools.utils import get_initialize_url
 from kolibri_tools.utils import start_kolibri_server
-from kolibri_tools.utils import prepare_endless_key
 
 
 class MenuEventHandler:
@@ -314,7 +323,6 @@ class Application(pew.ui.PEWApp):
                 del self.server_thread
 
             logging.info("Preparing to start Kolibri server...")
-            prepare_endless_key()
             self.server_thread = pew.ui.PEWThread(target=start_kolibri_server)
             self.server_thread.daemon = True
             self.server_thread.start()
