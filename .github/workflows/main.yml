@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-win.txt
+
+      - name: Prep kolibri dist
+        run: |
+          python kapew.py prep-kolibri-dist --exclude-prereleases --skip-preseed
+
+      - name: Build
+        run: |
+          python kapew.py build
+          mv dist/win/Kolibri kolibri-windows
+          mv src/kolibri kolibri-windows
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: "kolibri-windows"
+          path: "kolibri-windows"
+
