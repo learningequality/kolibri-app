@@ -96,7 +96,7 @@ app_data_dir = pew.get_app_files_dir()
 os.makedirs(app_data_dir, exist_ok=True)
 
 if not 'KOLIBRI_HOME' in os.environ:
-    kolibri_home = os.path.join(os.path.expanduser("~"), ".kolibri")
+    kolibri_home = os.path.join(os.path.expanduser("~"), ".endless-key")
 
     if sys.platform == 'darwin':
         # In macOS we must look for the folder that's along side Kolibri.app
@@ -119,8 +119,18 @@ if not 'KOLIBRI_HOME' in os.environ:
     os.environ["KOLIBRI_HOME"] = kolibri_home
 
 
+HOME_TEMPLATE_PATH = 'assets/preseeded_kolibri_home'
+
+from kolibri_tools.utils import get_key_drive
+key_drive = get_key_drive()
+if key_drive:
+    fallback_dirs = os.path.join(key_drive.datafolder, 'content')
+    os.environ["KOLIBRI_CONTENT_FALLBACK_DIRS"] = fallback_dirs
+    template = os.path.join(key_drive.datafolder, 'preseeded_kolibri_home')
+    if os.path.isdir(template):
+        HOME_TEMPLATE_PATH = template
+
 # move in a templated Kolibri data directory, including pre-migrated DB, to speed up startup
-HOME_TEMPLATE_PATH = "assets/preseeded_kolibri_home"
 HOME_PATH = os.environ["KOLIBRI_HOME"]
 if not os.path.exists(HOME_PATH) and os.path.exists(HOME_TEMPLATE_PATH):
     shutil.copytree(HOME_TEMPLATE_PATH, HOME_PATH)
