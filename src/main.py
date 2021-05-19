@@ -121,14 +121,17 @@ if not 'KOLIBRI_HOME' in os.environ:
 
 HOME_TEMPLATE_PATH = 'assets/preseeded_kolibri_home'
 
-from kolibri_tools.utils import get_key_drive
-key_drive = get_key_drive()
-if key_drive:
-    fallback_dirs = os.path.join(key_drive.datafolder, 'content')
+from kolibri_tools.utils import get_key_kolibri_data
+kolibri_data = get_key_kolibri_data()
+if kolibri_data:
+    logging.info(f'Using Endless Key: {kolibri_data}')
+    fallback_dirs = os.path.join(kolibri_data, 'content')
     os.environ["KOLIBRI_CONTENT_FALLBACK_DIRS"] = fallback_dirs
-    template = os.path.join(key_drive.datafolder, 'preseeded_kolibri_home')
+    template = os.path.join(kolibri_data, 'preseeded_kolibri_home')
     if os.path.isdir(template):
         HOME_TEMPLATE_PATH = template
+else:
+    logging.warning('Endless Key data not found')
 
 # move in a templated Kolibri data directory, including pre-migrated DB, to speed up startup
 HOME_PATH = os.environ["KOLIBRI_HOME"]
