@@ -28,7 +28,7 @@ jobs:
 
       - name: Prep kolibri dist
         run: |
-          python kapew.py prep-kolibri-dist --exclude-prereleases --skip-preseed
+          python kapew.py prep-kolibri-dist --exclude-prereleases
 
       - name: Build
         run: |
