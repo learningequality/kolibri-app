@@ -6,14 +6,14 @@ from collections import Mapping
 from config import KOLIBRI_PORT
 
 
-def get_key_drive():
-    # Add fallback content from endless key removable device
-
-    from kolibri.core.discovery.utils.filesystem import enumerate_mounted_disk_partitions
-    drives = enumerate_mounted_disk_partitions()
-    for path, drive in drives.items():
-        if drive.name == 'eoslive' and os.path.exists(drive.datafolder):
-            return drive
+def get_key_kolibri_data():
+    import win32api
+    folder_name = 'KOLIBRI_DATA'
+    drives = win32api.GetLogicalDriveStrings().split('\x00')
+    for drive in drives:
+        data_folder_name = os.path.join(drive, folder_name)
+        if drive and os.path.exists(data_folder_name):
+            return data_folder_name
 
     return None
 
