@@ -130,6 +130,10 @@ if kolibri_data:
     template = os.path.join(kolibri_data, 'preseeded_kolibri_home')
     if os.path.isdir(template):
         HOME_TEMPLATE_PATH = template
+    extensions = os.path.join(kolibri_data, 'extensions')
+    if os.path.isdir(extensions):
+        logging.info(f'Extending PYTHONPATH: {extensions}')
+        sys.path.append(extensions)
 else:
     logging.warning('Endless Key data not found')
 
