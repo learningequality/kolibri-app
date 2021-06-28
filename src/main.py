@@ -118,50 +118,6 @@ if not 'KOLIBRI_HOME' in os.environ:
 
     os.environ["KOLIBRI_HOME"] = kolibri_home
 
-
-HOME_TEMPLATE_PATH = 'assets/preseeded_kolibri_home'
-
-from kolibri_tools.utils import get_key_kolibri_data
-kolibri_data = get_key_kolibri_data()
-if kolibri_data:
-    logging.info(f'Using Endless Key: {kolibri_data}')
-    fallback_dirs = os.path.join(kolibri_data, 'content')
-    os.environ["KOLIBRI_CONTENT_FALLBACK_DIRS"] = fallback_dirs
-    template = os.path.join(kolibri_data, 'preseeded_kolibri_home')
-    if os.path.isdir(template):
-        HOME_TEMPLATE_PATH = template
-    extensions = os.path.join(kolibri_data, 'extensions')
-    if os.path.isdir(extensions):
-        logging.info(f'Extending PYTHONPATH: {extensions}')
-        sys.path.append(extensions)
-else:
-    logging.warning('Endless Key data not found')
-
-# move in a templated Kolibri data directory, including pre-migrated DB, to speed up startup
-HOME_PATH = os.environ["KOLIBRI_HOME"]
-if not os.path.exists(HOME_PATH) and os.path.exists(HOME_TEMPLATE_PATH):
-    shutil.copytree(HOME_TEMPLATE_PATH, HOME_PATH)
-
-
-from kolibri.utils.logger import KolibriTimedRotatingFileHandler
-
-log_basename = "kolibri-app.txt"
-log_dir = os.path.join(os.environ['KOLIBRI_HOME'], 'logs')
-os.makedirs(log_dir, exist_ok=True)
-log_filename = os.path.join(log_dir, log_basename)
-root_logger = logging.getLogger()
-file_handler = KolibriTimedRotatingFileHandler(filename=log_filename, encoding='utf-8', when='midnight', backupCount=30)
-root_logger.addHandler(file_handler)
-
-# Since the log files can contain multiple runs, make the first printout very visible to quickly show
-# when a new run starts in the log files.
-logging.info("")
-logging.info("**********************************")
-logging.info("*  Kolibri Mac App Initializing  *")
-logging.info("**********************************")
-logging.info("")
-logging.info("Started at: {}".format(datetime.datetime.today()))
-
 languages = None
 if sys.platform == 'darwin':
     langs_str = subprocess.check_output('defaults read .GlobalPreferences AppleLanguages | tr -d [:space:]', shell=True).strip()
@@ -305,7 +261,9 @@ class Application(pew.ui.PEWApp):
         # start server
         self.server_thread = None
         self.port = KOLIBRI_PORT
-        self.start_server()
+        self.home_thread = pew.ui.PEWThread(target=self.prepare_home)
+        self.home_thread.daemon = True
+        self.home_thread.start()
 
         self.load_thread = pew.ui.PEWThread(target=self.wait_for_server)
         self.load_thread.daemon = True
@@ -316,6 +274,51 @@ class Application(pew.ui.PEWApp):
         # causing the app to shut down early
         self.view.show()
         return 0
+
+    def prepare_home(self):
+        HOME_TEMPLATE_PATH = 'assets/preseeded_kolibri_home'
+
+        from kolibri_tools.utils import get_key_kolibri_data
+        kolibri_data = get_key_kolibri_data()
+        if kolibri_data:
+            logging.info(f'Using Endless Key: {kolibri_data}')
+            fallback_dirs = os.path.join(kolibri_data, 'content')
+            os.environ["KOLIBRI_CONTENT_FALLBACK_DIRS"] = fallback_dirs
+            template = os.path.join(kolibri_data, 'preseeded_kolibri_home')
+            if os.path.isdir(template):
+                HOME_TEMPLATE_PATH = template
+            extensions = os.path.join(kolibri_data, 'extensions')
+            if os.path.isdir(extensions):
+                logging.info(f'Extending PYTHONPATH: {extensions}')
+                sys.path.append(extensions)
+        else:
+            logging.warning('Endless Key data not found')
+
+# move in a templated Kolibri data directory, including pre-migrated DB, to speed up startup
+        HOME_PATH = os.environ["KOLIBRI_HOME"]
+        if not os.path.exists(HOME_PATH) and os.path.exists(HOME_TEMPLATE_PATH):
+            shutil.copytree(HOME_TEMPLATE_PATH, HOME_PATH)
+
+
+        from kolibri.utils.logger import KolibriTimedRotatingFileHandler
+
+        log_basename = "kolibri-app.txt"
+        log_dir = os.path.join(os.environ['KOLIBRI_HOME'], 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        log_filename = os.path.join(log_dir, log_basename)
+        root_logger = logging.getLogger()
+        file_handler = KolibriTimedRotatingFileHandler(filename=log_filename, encoding='utf-8', when='midnight', backupCount=30)
+        root_logger.addHandler(file_handler)
+
+# Since the log files can contain multiple runs, make the first printout very visible to quickly show
+# when a new run starts in the log files.
+        logging.info("")
+        logging.info("**********************************")
+        logging.info("*  Kolibri Mac App Initializing  *")
+        logging.info("**********************************")
+        logging.info("")
+        logging.info("Started at: {}".format(datetime.datetime.today()))
+        self.start_server()
 
     def start_server(self):
         os.environ["KOLIBRI_HTTP_PORT"] = str(self.port)
@@ -466,16 +469,5 @@ if __name__ == "__main__":
     # This call fixes some issues with using multiprocessing when packaged as an app. (e.g. fork can start the app
     # multiple times)
     multiprocessing.freeze_support()
-    if sys.platform.startswith('win'):
-        import winreg
-
-        try:
-            root = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
-            KEY = r"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION"
-            with winreg.CreateKeyEx(root, KEY, 0, winreg.KEY_ALL_ACCESS) as regkey:
-                winreg.SetValueEx(regkey, os.path.basename(sys.executable), 0, winreg.REG_DWORD, 11000)
-            print("Key created?")
-        except:
-            raise
     app = Application()
     app.run()
