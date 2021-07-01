@@ -21,10 +21,17 @@ jobs:
         with:
           python-version: 3.7
 
+      - name: Set up Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
       - name: Install requirements
         run: |
           pip install -r requirements.txt
           pip install -r requirements-win.txt
+          npm install -g yarn
+          yarn global add @electron-forge/cli
 
       - name: Prep kolibri dist
         run: |
@@ -37,11 +44,20 @@ jobs:
       - name: Build
         run: |
           python kapew.py build
-          mv dist/win/Kolibri kolibri-windows
-          mv src/kolibri kolibri-windows
+          mv src/kolibri dist/win/Kolibri
+          mv dist/win/Kolibri kolibri-electron/src/
+
+      - name: Install electron dependencies
+        working-directory: kolibri-electron
+        run: |
+          yarn install
+          yarn make
+
+      - name: Create kolibri-windows
+        run: |
+          mv kolibri-electron/out/kolibri-electron-win32-x64 kolibri-windows
 
       - uses: actions/upload-artifact@v2
         with:
           name: "kolibri-windows"
           path: "kolibri-windows"
-

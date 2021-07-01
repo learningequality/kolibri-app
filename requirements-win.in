@@ -1,3 +1,1 @@
 PyInstaller==3.6
-wxPython==4.1.1
-https://github.com/dylanmccall/cefpython/releases/download/v66.1-endless0/cefpython3-66.1-py2.py3-none-win_amd64.whl
