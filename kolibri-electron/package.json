@@ -47,6 +47,7 @@
     }
   },
   "dependencies": {
+    "drivelist": "^9.2.4",
     "electron-squirrel-startup": "^1.0.0"
   },
   "devDependencies": {
