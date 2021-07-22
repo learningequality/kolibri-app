@@ -16,6 +16,7 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
 const NULL_PLUGIN_VERSION = '0';
 const KOLIBRI = 'http://localhost:5000';
 let pingTimeout = 20;
+let firstLaunchTimeout = 40;
 let mainWindow = null;
 let loadRetries = 0;
 let timeSpent = 0;
@@ -195,8 +196,8 @@ async function createWindow() {
   const firstLaunch = await checkVersion();
   if (firstLaunch) {
     mainWindow.webContents.executeJavaScript('firstLaunch()', true);
-    // Adding 20 seconds to the pingTimeout to wait for the kolibri-home copy
-    pingTimeout += 20;
+    // Incrementing the pingTimeout to wait for the kolibri-home copy
+    pingTimeout += firstLaunchTimeout;
   }
   waitForKolibriUp(mainWindow);
 };
