@@ -167,11 +167,17 @@ async function createWindow() {
     height: 768,
     autoHideMenuBar: true,
     center: true,
-    icon: path.join(__dirname, 'icon.png'),
     show:false,
+    icon: path.join(__dirname, 'icon.png'),
+    title: 'Endless Key',
   });
   mainWindow.maximize();
   mainWindow.show();
+
+
+  mainWindow.on('page-title-updated', (ev) => {
+    ev.preventDefault();
+  });
 
   // Link handler to open external links on default browser
   const windowOpenHandler = ({url}) => {
