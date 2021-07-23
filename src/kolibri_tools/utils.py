@@ -1,32 +1,9 @@
 import json
 import logging
 import os
-import string
 from collections import Mapping
-from ctypes import windll
 
 from config import KOLIBRI_PORT
-
-
-def get_drives():
-    drives = []
-    bitmask = windll.kernel32.GetLogicalDrives()
-    for letter in string.ascii_uppercase:
-        if bitmask & 1:
-            drives.append(f'{letter}:\\')
-        bitmask >>= 1
-
-    return drives
-
-
-def get_key_kolibri_data():
-    folder_name = 'KOLIBRI_DATA'
-    for drive in get_drives():
-        data_folder_name = os.path.join(drive, folder_name)
-        if drive and os.path.exists(data_folder_name):
-            return data_folder_name
-
-    return None
 
 
 def start_kolibri_server():

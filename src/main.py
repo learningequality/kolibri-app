@@ -3,8 +3,6 @@ import gettext
 import logging
 import os
 import pew
-import shutil
-import subprocess
 import sys
 
 from config import KOLIBRI_PORT
@@ -71,42 +69,7 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "kolibri.deployment.default.settings.base
 app_data_dir = pew.get_app_files_dir()
 os.makedirs(app_data_dir, exist_ok=True)
 
-if not 'KOLIBRI_HOME' in os.environ:
-    kolibri_home = os.path.join(os.path.expanduser("~"), ".endless-key")
-
-    if sys.platform == 'darwin':
-        # In macOS we must look for the folder that's along side Kolibri.app
-        portable_dirs = [os.path.abspath(os.path.join(root_dir, '../../..'))]
-    else:
-        portable_dirs = [root_dir, os.path.abspath(os.path.join(root_dir, '..'))]
-
-    for adir in portable_dirs:
-        kolibri_data_dir = os.path.join(adir, 'KOLIBRI_DATA')
-        kolibri_dir = os.path.join(adir, '.kolibri')
-        if os.path.isdir(kolibri_data_dir):
-            db_file = os.path.join(kolibri_data_dir, 'db.sqlite3')
-            if os.path.exists(db_file):
-                kolibri_home = kolibri_data_dir
-                break
-        if os.path.isdir(kolibri_dir):
-            kolibri_home = kolibri_dir
-            break
-
-    os.environ["KOLIBRI_HOME"] = kolibri_home
-
 languages = None
-if sys.platform == 'darwin':
-    langs_str = subprocess.check_output('defaults read .GlobalPreferences AppleLanguages | tr -d [:space:]', shell=True).strip()
-    languages_base = langs_str[1:-1].decode('utf-8').replace('"', '').replace('-', '_').split(',')
-    logging.info("languages= {}".format(languages))
-    languages = []
-    for lang in languages_base:
-        if os.path.exists(os.path.join(locale_root_dir, lang)):
-            languages.append(lang)
-        elif '_' in lang:
-            # make sure we check for base languages in addition to specific dialects.
-            languages.append(lang.split('_')[0])
-
 locale_info = {}
 try:
     t = gettext.translation('macapp', locale_root_dir, languages=languages, fallback=False)
@@ -128,33 +91,7 @@ logging.info("Locale info = {}".format(locale_info))
 
 
 class Application:
-    def run(self):
-        self.port = KOLIBRI_PORT
-
-        HOME_TEMPLATE_PATH = 'assets/preseeded_kolibri_home'
-
-        from kolibri_tools.utils import get_key_kolibri_data
-        kolibri_data = get_key_kolibri_data()
-        if kolibri_data:
-            logging.info(f'Using Endless Key: {kolibri_data}')
-            fallback_dirs = os.path.join(kolibri_data, 'content')
-            os.environ["KOLIBRI_CONTENT_FALLBACK_DIRS"] = fallback_dirs
-            template = os.path.join(kolibri_data, 'preseeded_kolibri_home')
-            if os.path.isdir(template):
-                HOME_TEMPLATE_PATH = template
-            extensions = os.path.join(kolibri_data, 'extensions')
-            if os.path.isdir(extensions):
-                logging.info(f'Extending PYTHONPATH: {extensions}')
-                sys.path.append(extensions)
-        else:
-            logging.warning('Endless Key data not found')
-
-# move in a templated Kolibri data directory, including pre-migrated DB, to speed up startup
-        HOME_PATH = os.environ["KOLIBRI_HOME"]
-        if not os.path.exists(HOME_PATH) and os.path.exists(HOME_TEMPLATE_PATH):
-            shutil.copytree(HOME_TEMPLATE_PATH, HOME_PATH)
-
-
+    def _init_log(self):
         from kolibri.utils.logger import KolibriTimedRotatingFileHandler
 
         log_basename = "kolibri-app.txt"
@@ -165,14 +102,24 @@ class Application:
         file_handler = KolibriTimedRotatingFileHandler(filename=log_filename, encoding='utf-8', when='midnight', backupCount=30)
         root_logger.addHandler(file_handler)
 
+    def run(self):
+        self.port = KOLIBRI_PORT
+        self._init_log()
+
 # Since the log files can contain multiple runs, make the first printout very visible to quickly show
 # when a new run starts in the log files.
         logging.info("")
-        logging.info("**********************************")
-        logging.info("*  Kolibri Mac App Initializing  *")
-        logging.info("**********************************")
+        logging.info("**************************************")
+        logging.info("*  Kolibri Backend App Initializing  *")
+        logging.info("**************************************")
         logging.info("")
         logging.info("Started at: {}".format(datetime.datetime.today()))
+
+        # This is needed because in other case the extensions path is not
+        # working correctly
+        if os.environ.get('PYTHONPATH'):
+            sys.path.append(os.environ['PYTHONPATH'])
+
         self.start_server()
 
     def start_server(self):

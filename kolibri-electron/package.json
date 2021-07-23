@@ -48,7 +48,8 @@
   },
   "dependencies": {
     "drivelist": "^9.2.4",
-    "electron-squirrel-startup": "^1.0.0"
+    "electron-squirrel-startup": "^1.0.0",
+    "fs-extra": "^10.0.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0-beta.57",

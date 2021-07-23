@@ -1,8 +1,10 @@
 const { app, BrowserWindow } = require('electron');
+const { env } = require('process');
 const path = require('path');
 const child_process = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const fsExtra = require('fs-extra');
 const fsPromises = require('fs').promises;
 const os = require('os');
 const drivelist = require('drivelist');
@@ -16,13 +18,16 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
 const NULL_PLUGIN_VERSION = '0';
 const KOLIBRI = 'http://localhost:5000';
 let pingTimeout = 20;
-let firstLaunchTimeout = 40;
 let mainWindow = null;
 let loadRetries = 0;
 let timeSpent = 0;
 let maxRetries = 3;
 
 let django = null;
+
+let KOLIBRI_HOME_TEMPLATE = '';
+let KOLIBRI_EXTENSIONS = '';
+let KOLIBRI_HOME = path.join(os.homedir(), '.endless-key');
 
 async function getEndlessKeyDrive() {
   const drives = await drivelist.list();
@@ -42,19 +47,23 @@ async function getEndlessKeyDrive() {
   return null;
 }
 
+async function loadKolibriEnv() {
+  const drive = await getEndlessKeyDrive();
+  const keyData = path.join(drive, 'KOLIBRI_DATA');
+
+  KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
+  KOLIBRI_HOME_TEMPLATE = path.join(keyData, 'preseeded_kolibri_home');
+
+  env.KOLIBRI_CONTENT_FALLBACK_DIRS = path.join(keyData, 'content');
+  env.PYTHONPATH = KOLIBRI_EXTENSIONS;
+  env.KOLIBRI_HOME = KOLIBRI_HOME;
+}
+
 async function getLoadingScreen() {
   const defaultLoading = path.join(__dirname, 'Kolibri', 'assets', '_load.html');
 
-  // Try to use the custom loading screen from kolibri-explore-plugin
-  const drive = await getEndlessKeyDrive();
-  if (!drive) {
-    return defaultLoading;
-  }
-
   const loading = path.join(
-    drive,
-    'KOLIBRI_DATA',
-    'extensions',
+    KOLIBRI_EXTENSIONS,
     'kolibri_explore_plugin',
     'loadingScreen',
     'index.html',
@@ -71,15 +80,8 @@ async function getLoadingScreen() {
 }
 
 async function getPluginVersion() {
-  const drive = await getEndlessKeyDrive();
-  if (!drive) {
-    console.error('Endless Key not found');
-    return NULL_PLUGIN_VERSION;
-  }
-  const extensionsDir = path.join(drive, 'KOLIBRI_DATA', 'extensions');
-
   try {
-    const files = await fsPromises.readdir(extensionsDir);
+    const files = await fsPromises.readdir(KOLIBRI_EXTENSIONS);
     for (const file of files) {
       // Looking for plugin kolibri_explore_plugin-VERSION.dist-info
       const re = /kolibri_explore_plugin-(\d+\.\d+\.\d+)\.dist-info/
@@ -103,8 +105,7 @@ async function getPluginVersion() {
 // .endless-key doesn't exists.
 async function checkVersion() {
   console.log('Checking kolibri-app version file');
-  const kolibriHome = path.join(os.homedir(), '.endless-key');
-  const versionFile = path.join(kolibriHome, 'version');
+  const versionFile = path.join(KOLIBRI_HOME, 'version');
   const pluginVersion = await getPluginVersion();
   let kolibriHomeVersion = NULL_PLUGIN_VERSION;
 
@@ -117,7 +118,7 @@ async function checkVersion() {
   console.log(`${kolibriHomeVersion} < ${pluginVersion}`);
   if (kolibriHomeVersion < pluginVersion) {
     console.log('Newer version, replace the .endless-key directory and cleaning cache');
-    await fsPromises.rm(kolibriHome, { recursive: true, force: true });
+    await fsExtra.copy(KOLIBRI_HOME_TEMPLATE, KOLIBRI_HOME);
     mainWindow.webContents.session.clearCache();
     return true;
   }
@@ -126,8 +127,7 @@ async function checkVersion() {
 }
 
 async function updateVersion() {
-  const kolibriHome = path.join(os.homedir(), '.endless-key');
-  const versionFile = path.join(kolibriHome, 'version');
+  const versionFile = path.join(KOLIBRI_HOME, 'version');
   const pluginVersion = await getPluginVersion();
 
   await fsPromises.writeFile(versionFile, pluginVersion);
@@ -191,13 +191,13 @@ async function createWindow() {
     return {action: 'deny'};
   };
   mainWindow.webContents.setWindowOpenHandler(windowOpenHandler);
+
+  await loadKolibriEnv();
   await mainWindow.loadFile(await getLoadingScreen());
 
   const firstLaunch = await checkVersion();
   if (firstLaunch) {
     mainWindow.webContents.executeJavaScript('firstLaunch()', true);
-    // Incrementing the pingTimeout to wait for the kolibri-home copy
-    pingTimeout += firstLaunchTimeout;
   }
   waitForKolibriUp(mainWindow);
 };
