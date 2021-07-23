@@ -29,27 +29,38 @@ let KOLIBRI_HOME_TEMPLATE = '';
 let KOLIBRI_EXTENSIONS = '';
 let KOLIBRI_HOME = path.join(os.homedir(), '.endless-key');
 
-async function getEndlessKeyDrive() {
+async function getEndlessKeyDataPath() {
   const drives = await drivelist.list();
 
-  // Look for the endless key drive
-  for (const d of drives.map((d) => d.mountpoints[0].path)) {
-    console.log(`Looking for endless Key on ${d}`);
-    const p = path.join(d, 'KOLIBRI_DATA');
-    try {
-      await fsPromises.access(p);
-      return d;
-    } catch (err) {
-      console.log(`${p} doesn't exists, trying next`);
-    }
-  };
+  const accessPromises = drives.map(async (drive) => {
 
-  return null;
+    const mountpoint = drive.mountpoints[0];
+
+    if (!mountpoint) {
+      throw Error("Drive is not mounted");
+    }
+
+    const keyData = path.join(mountpoint.path, 'KOLIBRI_DATA');
+
+    // thows an Error on fail
+    await fsPromises.access(keyData);
+    return keyData;
+  });
+
+  try {
+    const keyData = await Promise.any(accessPromises);
+    return keyData;
+  } catch (error) {
+    return undefined;
+  }
 }
 
 async function loadKolibriEnv() {
-  const drive = await getEndlessKeyDrive();
-  const keyData = path.join(drive, 'KOLIBRI_DATA');
+  const keyData = await getEndlessKeyDataPath();
+
+  if (!keyData) {
+    return false;
+  }
 
   KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
   KOLIBRI_HOME_TEMPLATE = path.join(keyData, 'preseeded_kolibri_home');
@@ -57,6 +68,8 @@ async function loadKolibriEnv() {
   env.KOLIBRI_CONTENT_FALLBACK_DIRS = path.join(keyData, 'content');
   env.PYTHONPATH = KOLIBRI_EXTENSIONS;
   env.KOLIBRI_HOME = KOLIBRI_HOME;
+
+  return true;
 }
 
 async function getLoadingScreen() {
@@ -192,14 +205,21 @@ async function createWindow() {
   };
   mainWindow.webContents.setWindowOpenHandler(windowOpenHandler);
 
-  await loadKolibriEnv();
-  await mainWindow.loadFile(await getLoadingScreen());
+  const isDataAvailable = await loadKolibriEnv();
 
-  const firstLaunch = await checkVersion();
-  if (firstLaunch) {
-    mainWindow.webContents.executeJavaScript('firstLaunch()', true);
+  await mainWindow.loadFile(await getLoadingScreen());
+  
+  if (!isDataAvailable) {
+    mainWindow.webContents.executeJavaScript('show_error()', true);
+  } else {
+    const firstLaunch = await checkVersion();
+    if (firstLaunch) {
+      mainWindow.webContents.executeJavaScript('firstLaunch()', true);
+    }
+    waitForKolibriUp(mainWindow);
   }
-  waitForKolibriUp(mainWindow);
+
+  return isDataAvailable;
 };
 
 const runKolibri = () => {
@@ -225,8 +245,10 @@ const runKolibri = () => {
 
 app.on('ready', () => {
   createWindow()
-    .then(() => {
-      runKolibri();
+    .then((isDataAvailable) => {
+      if (isDataAvailable) {
+        runKolibri();
+      }
     });
 });
 
