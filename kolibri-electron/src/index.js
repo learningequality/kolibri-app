@@ -58,12 +58,18 @@ async function getEndlessKeyDataPath() {
 async function loadKolibriEnv() {
   const keyData = await getEndlessKeyDataPath();
 
+  if (!keyData) {
+    return false;
+  }
+
   KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
   KOLIBRI_HOME_TEMPLATE = path.join(keyData, 'preseeded_kolibri_home');
 
   env.KOLIBRI_CONTENT_FALLBACK_DIRS = path.join(keyData, 'content');
   env.PYTHONPATH = KOLIBRI_EXTENSIONS;
   env.KOLIBRI_HOME = KOLIBRI_HOME;
+
+  return true;
 }
 
 async function getLoadingScreen() {
@@ -199,14 +205,21 @@ async function createWindow() {
   };
   mainWindow.webContents.setWindowOpenHandler(windowOpenHandler);
 
-  await loadKolibriEnv();
-  await mainWindow.loadFile(await getLoadingScreen());
+  const isDataAvailable = await loadKolibriEnv();
 
-  const firstLaunch = await checkVersion();
-  if (firstLaunch) {
-    mainWindow.webContents.executeJavaScript('firstLaunch()', true);
+  await mainWindow.loadFile(await getLoadingScreen());
+  
+  if (!isDataAvailable) {
+    mainWindow.webContents.executeJavaScript('show_error()', true);
+  } else {
+    const firstLaunch = await checkVersion();
+    if (firstLaunch) {
+      mainWindow.webContents.executeJavaScript('firstLaunch()', true);
+    }
+    waitForKolibriUp(mainWindow);
   }
-  waitForKolibriUp(mainWindow);
+
+  return isDataAvailable;
 };
 
 const runKolibri = () => {
@@ -232,8 +245,10 @@ const runKolibri = () => {
 
 app.on('ready', () => {
   createWindow()
-    .then(() => {
-      runKolibri();
+    .then((isDataAvailable) => {
+      if (isDataAvailable) {
+        runKolibri();
+      }
     });
 });
 
