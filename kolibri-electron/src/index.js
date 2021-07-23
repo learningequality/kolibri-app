@@ -29,27 +29,34 @@ let KOLIBRI_HOME_TEMPLATE = '';
 let KOLIBRI_EXTENSIONS = '';
 let KOLIBRI_HOME = path.join(os.homedir(), '.endless-key');
 
-async function getEndlessKeyDrive() {
+async function getEndlessKeyDataPath() {
   const drives = await drivelist.list();
 
-  // Look for the endless key drive
-  for (const d of drives.map((d) => d.mountpoints[0].path)) {
-    console.log(`Looking for endless Key on ${d}`);
-    const p = path.join(d, 'KOLIBRI_DATA');
-    try {
-      await fsPromises.access(p);
-      return d;
-    } catch (err) {
-      console.log(`${p} doesn't exists, trying next`);
-    }
-  };
+  const accessPromises = drives.map(async (drive) => {
 
-  return null;
+    const mountpoint = drive.mountpoints[0];
+
+    if (!mountpoint) {
+      throw Error("Drive is not mounted");
+    }
+
+    const keyData = path.join(mountpoint.path, 'KOLIBRI_DATA');
+
+    // thows an Error on fail
+    await fsPromises.access(keyData);
+    return keyData;
+  });
+
+  try {
+    const keyData = await Promise.any(accessPromises);
+    return keyData;
+  } catch (error) {
+    return undefined;
+  }
 }
 
 async function loadKolibriEnv() {
-  const drive = await getEndlessKeyDrive();
-  const keyData = path.join(drive, 'KOLIBRI_DATA');
+  const keyData = await getEndlessKeyDataPath();
 
   KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
   KOLIBRI_HOME_TEMPLATE = path.join(keyData, 'preseeded_kolibri_home');
