@@ -28,6 +28,7 @@ jobs:
 
       - name: Install requirements
         run: |
+          pip install wheel
           pip install -r requirements.txt
           pip install -r requirements-win.txt
           npm install -g yarn
@@ -37,13 +38,28 @@ jobs:
         run: |
           python kapew.py prep-kolibri-dist --exclude-prereleases --skip-preseed
 
-      - name: Apply performance patches
+      - name: Update kolibri.dist.le_utils for kolibri-zim-plugin
         run: |
-          cp patches/morango-models-utils.py src/kolibri/dist/morango/models/utils.py
+          pip install git+https://github.com/learningequality/le-utils.git@master --target="src\kolibri\dist" --upgrade
+
+      - name: Update kolibri.dist.morango for improved performance on Windows
+        run: |
+          pip install morango==0.5.6 --target="src\kolibri\dist" --upgrade
+
+      - name: Add kolibri_zim_plugin to Kolibri's dist packages
+        run: |
+          pip install kolibri-zim-plugin --target="src\kolibri\dist"
+
+      # - name: Apply performance patches
+      #   run: |
+      #     cp patches/morango-models-utils.py src/kolibri/dist/morango/models/utils.py
 
       - name: Build
         run: |
           python kapew.py build
+
+      - name: Add package data files to dist
+        run: |
           mv src/kolibri dist/win/Kolibri
           mv dist/win/Kolibri kolibri-electron/src/
 
