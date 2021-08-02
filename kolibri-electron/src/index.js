@@ -17,7 +17,7 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
 
 const NULL_PLUGIN_VERSION = '0';
 const KOLIBRI = 'http://localhost:5000';
-let pingTimeout = 20;
+let pingTimeout = 40;
 let mainWindow = null;
 let loadRetries = 0;
 let timeSpent = 0;
