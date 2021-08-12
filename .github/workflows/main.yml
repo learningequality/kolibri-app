@@ -21,6 +21,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.7
+          architecture: 'x86'
 
       - name: Set up Node
         uses: actions/setup-node@v2
@@ -68,11 +69,11 @@ jobs:
         working-directory: kolibri-electron
         run: |
           yarn install
-          yarn make
+          yarn make --arch=ia32
 
       - name: Create kolibri-windows
         run: |
-          mv kolibri-electron/out/kolibri-electron-win32-x64 kolibri-windows
+          mv kolibri-electron/out/kolibri-electron-win32-ia32 kolibri-windows
 
       - uses: actions/upload-artifact@v2
         with:
