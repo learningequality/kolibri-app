@@ -52,9 +52,9 @@ jobs:
         run: |
           pip install kolibri-zim-plugin --target="src\kolibri\dist"
 
-      # - name: Apply performance patches
-      #   run: |
-      #     cp patches/morango-models-utils.py src/kolibri/dist/morango/models/utils.py
+      - name : Patch Kolibri's server code to avoid Windows firewall prompts
+        run: |
+          C:\msys64\usr\bin\patch.exe src\kolibri\utils\server.py patches\kolibri-utils-server.diff
 
       - name: Build
         run: |
