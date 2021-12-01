@@ -42,7 +42,7 @@ jobs:
 
       - name: Update kolibri.dist.le_utils for kolibri-zim-plugin
         run: |
-          pip install git+https://github.com/learningequality/le-utils.git@master --target="src\kolibri\dist" --upgrade
+          pip install git+https://github.com/learningequality/le-utils.git@v0.1.34 --target="src\kolibri\dist" --upgrade
 
       - name: Update kolibri.dist.morango for improved performance on Windows
         run: |
