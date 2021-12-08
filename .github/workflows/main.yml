@@ -50,7 +50,7 @@ jobs:
 
       - name: Add kolibri_zim_plugin to Kolibri's dist packages
         run: |
-          pip install kolibri-zim-plugin --target="src\kolibri\dist"
+          pip install kolibri-zim-plugin==1.1.2 --target="src\kolibri\dist"
 
       - name : Patch Kolibri's server code to avoid Windows firewall prompts
         run: |
