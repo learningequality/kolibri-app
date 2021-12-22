@@ -29,6 +29,13 @@ let KOLIBRI_HOME_TEMPLATE = '';
 let KOLIBRI_EXTENSIONS = '';
 let KOLIBRI_HOME = path.join(os.homedir(), '.endless-key');
 
+function removePidFile() {
+  const pidFile = path.join(KOLIBRI_HOME, 'server.pid');
+  if (fs.existsSync(pidFile)) {
+    fs.rmSync(pidFile);
+  }
+}
+
 async function getEndlessKeyDataPath() {
   const drives = await drivelist.list();
 
@@ -226,8 +233,10 @@ const runKolibri = () => {
   console.log('Running kolibri backend');
   if (django) {
     console.log('Killing previous stalled server');
-    django.kill('SIGTERM');
+    django.kill();
   }
+
+  removePidFile();
 
   django = child_process.spawn(path.join(__dirname, 'Kolibri', 'Kolibri.exe'));
   django.stdout.on('data', (data) => {
@@ -254,4 +263,5 @@ app.on('ready', () => {
 
 app.on('window-all-closed', () => {
   app.quit();
+  removePidFile();
 });

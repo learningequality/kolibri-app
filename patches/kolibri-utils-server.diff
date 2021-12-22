@@ -1,42 +1,22 @@
---- "kolibri/utils/server.py" 2021-08-11 09:40:50.000000000 -0700
-+++ "kolibri/utils/server.py" 2021-08-11 09:40:36.000000000 -0700
-@@ -62,7 +62,7 @@
+--- "kolibri/utils/server.py" 2021-11-19 11:23:25.360732982 +0100
++++ "kolibri/utils/server.py" 2021-11-19 11:23:29.248766236 +0100
+@@ -71,7 +71,7 @@
  DAEMON_LOG = os.path.join(conf.LOG_ROOT, "daemon.txt")
-
+ 
  # Currently non-configurable until we know how to properly handle this
--LISTEN_ADDRESS = "0.0.0.0"
 +LISTEN_ADDRESS = "127.0.0.1"
-
-
- class NotRunning(Exception):
-@@ -106,22 +106,22 @@
-         scheduler.start_scheduler()
-
-         # Register the Kolibri zeroconf service so it will be discoverable on the network
--        from kolibri.core.discovery.utils.network.search import (
--            register_zeroconf_service,
--        )
-+        # from kolibri.core.discovery.utils.network.search import (
-+        #     register_zeroconf_service,
-+        # )
-
--        register_zeroconf_service(port=self.port)
-+        # register_zeroconf_service(port=self.port)
-
-     def stop(self):
-         scheduler.shutdown_scheduler()
-         if self.workers is not None:
-             for worker in self.workers:
-                 worker.shutdown()
--        from kolibri.core.discovery.utils.network.search import (
--            unregister_zeroconf_service,
--        )
-+        # from kolibri.core.discovery.utils.network.search import (
-+        #     unregister_zeroconf_service,
-+        # )
-
--        unregister_zeroconf_service()
-+        # unregister_zeroconf_service()
-
-         if self.workers is not None:
-             for worker in self.workers:
+-LISTEN_ADDRESS = "0.0.0.0"
+ 
+ status_messages = {
+     STATUS_RUNNING: "OK, running",
+@@ -646,8 +646,8 @@
+         service_plugin.subscribe()
+ 
+         # Setup zeroconf plugin
++        # zeroconf_plugin = ZeroConfPlugin(self, port)
++        # zeroconf_plugin.subscribe()
+-        zeroconf_plugin = ZeroConfPlugin(self, port)
+-        zeroconf_plugin.subscribe()
+ 
+         signal_handler = SignalHandler(self)
+ 

@@ -3,7 +3,7 @@ import logging
 import os
 from collections import Mapping
 
-from config import KOLIBRI_PORT
+from config import KOLIBRI_PORT, KOLIBRI_ZIP_PORT
 
 
 def start_kolibri_server():
@@ -16,7 +16,7 @@ def start_kolibri_server():
     setup_logging(debug=False)
     initialize()
     automatic_provisiondevice()
-    start.callback(KOLIBRI_PORT, background=False)
+    start.callback(KOLIBRI_PORT, zip_port=KOLIBRI_ZIP_PORT, background=False)
 
 
 def get_initialize_url(next_url=None):
