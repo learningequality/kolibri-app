@@ -44,6 +44,11 @@ jobs:
         run: |
           C:\msys64\usr\bin\patch.exe src\kolibri\utils\server.py patches\kolibri-utils-server.diff
 
+      # FIXME: Remove this patch when the change is released in Kolibri
+      - name : Patch Kolibri with Change default ordering to a joint of "lft", "id"
+        run: |
+          C:\msys64\usr\bin\patch.exe src\kolibri\core\content\api.py patches\0001-Content-API-Change-default-ordering-to-a-joint-of-lf.patch
+
       - name: Build
         run: |
           python kapew.py build
