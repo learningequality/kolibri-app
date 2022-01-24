@@ -48,6 +48,13 @@ def codesign(args, remainder):
     return subprocess.call(cmd, env=env)
 
 
+def notarize(args, remainder):
+    cmd = ['pew', 'notarize']
+    cmd.extend(remainder)
+    env = build_tools.version.get_env_with_version_set(remainder)
+    return subprocess.call(cmd, env=env)
+
+
 def run(args, remainder):
     cmd = ['pew', 'run']
     cmd.extend(remainder)
@@ -90,8 +97,11 @@ def main():
     pkg_cmd = commands.add_parser('package', help="Generate an installer package for the Kolibri app.")
     pkg_cmd.set_defaults(func=package)
 
-    notarize = commands.add_parser('codesign', help="Codesign the latest app build.")
-    notarize.set_defaults(func=codesign)
+    codesign_cmd = commands.add_parser('codesign', help="Codesign the latest app build.")
+    codesign_cmd.set_defaults(func=codesign)
+
+    notarize_cmd = commands.add_parser('notarize', help="Notarize the latest app build (macOS-specific).")
+    notarize_cmd.set_defaults(func=notarize)
 
     prebuild = commands.add_parser('prep-kolibri-dist', help="Prepare a bundled Kolibri for app build.")
     prebuild.add_argument('--kolibri-version', default=None,

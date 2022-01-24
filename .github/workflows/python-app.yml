@@ -84,7 +84,7 @@ jobs:
         kapew prep-kolibri-dist --exclude-prereleases
         kapew build
         kapew codesign
-        pew notarize --wait
+        kapew notarize --wait
         kapew package
     - name: GH Release
       uses: actions/upload-artifact@v2.2.4
