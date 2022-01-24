@@ -69,6 +69,7 @@ def preseed_kolibri(whl):
 
     # touch the was_preseeded file
     open(os.path.join(preseed_dir, 'was_preseeded'), 'a')
+    print("Kolibri home folder pre-seeded successfully.")
 
 
 def get_kolibri_releases():
