@@ -1,0 +1,40 @@
+From 909cad31b40f98414a106d9e7b9b0d3d830b2c71 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Manuel=20Qui=C3=B1ones?= <manuel.por.aca@gmail.com>
+Date: Tue, 18 Jan 2022 09:46:03 -0300
+Subject: [PATCH] Content API: Change default ordering to a joint of "lft",
+ "id"
+
+The API should return the nodes ordered in the same way as they where
+authored in Kolibri Studio.
+
+Also: remove duplicated code in OptionalContentNodePagination
+subclass.
+
+Co-authored-by: Richard Tibbles <richard@learningequality.org>
+---
+ kolibri/core/content/api.py | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/kolibri/core/content/api.py b/kolibri/core/content/api.py
+index dbc5488aa..4751381d1 100644
+--- a/kolibri/core/content/api.py
++++ b/kolibri/core/content/api.py
+@@ -555,14 +555,11 @@ class BaseContentNodeMixin(object):
+ 
+ 
+ class OptionalPagination(ValuesViewsetCursorPagination):
+-    ordering = "id"
++    ordering = ("lft", "id")
+     page_size_query_param = "max_results"
+ 
+ 
+ class OptionalContentNodePagination(OptionalPagination):
+-    ordering = "id"
+-    page_size_query_param = "max_results"
+-
+     def paginate_queryset(self, queryset, request, view=None):
+         # Record the queryset for use in returning available filters
+         self.queryset = queryset
+-- 
+2.32.0
+
