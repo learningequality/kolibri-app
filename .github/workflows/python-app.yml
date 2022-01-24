@@ -81,7 +81,7 @@ jobs:
         MAC_NOTARIZATION_PROVIDER: ${{ secrets.MAC_NOTARIZATION_PROVIDER }}
       run: |
         . .py3env/bin/activate
-        # kapew prep-kolibri-dist --exclude-prereleases
+        kapew prep-kolibri-dist --exclude-prereleases
         kapew build
         kapew codesign
         pew notarize --wait
