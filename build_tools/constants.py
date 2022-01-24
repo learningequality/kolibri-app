@@ -58,5 +58,7 @@ KOLIBRI_EXCLUDE_DIRS = [
     "src/kolibri/dist/cext/cp27",
     "src/kolibri/dist/cext/cp34",
     "src/kolibri/dist/cext/cp35",
-    "src/kolibri/dist/cext/cp37"
+    "src/kolibri/dist/cext/cp37",
+    "src/kolibri/dist/cext/cp38",
+    "src/kolibri/dist/cext/cp39"
 ]

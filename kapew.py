@@ -24,7 +24,7 @@ def codesign_build(args, remainder):
         if not os.getenv('MAC_CODESIGN_IDENTITY'):
             print("To do a codesigned build, you must set MAC_CODESIGN_IDENTITY")
             sys.exit(1)
-        build_tools.build.do_build(['--sign'])
+        build_tools.build.do_build()
         print("Uploading Mac build for notarization, this may take a while...")
         build_tools.codesigning.notarize_mac_build()
         print("Once you receive a successful notarization message from Apple, run")
@@ -39,6 +39,13 @@ def build(args, remainder):
 
 def clean(args, remainder):
     build_tools.clean.clean(args)
+
+
+def codesign(args, remainder):
+    cmd = ['pew', 'codesign']
+    cmd.extend(remainder)
+    env = build_tools.version.get_env_with_version_set(remainder)
+    return subprocess.call(cmd, env=env)
 
 
 def run(args, remainder):
@@ -84,7 +91,7 @@ def main():
     pkg_cmd.set_defaults(func=package)
 
     notarize = commands.add_parser('codesign', help="Codesign the latest app build.")
-    notarize.set_defaults(func=codesign_build)
+    notarize.set_defaults(func=codesign)
 
     prebuild = commands.add_parser('prep-kolibri-dist', help="Prepare a bundled Kolibri for app build.")
     prebuild.add_argument('--kolibri-version', default=None,
