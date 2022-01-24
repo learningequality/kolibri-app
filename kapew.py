@@ -14,6 +14,7 @@ import build_tools.version
 
 def prep_kolibri_dist(args, remainder):
     build_tools.prep_kolibri_dist.update_kolibri(args)
+    return 0
 
 
 def codesign_build(args, remainder):
@@ -35,11 +36,12 @@ def codesign_build(args, remainder):
 
 def build(args, remainder):
     build_tools.build.do_build(remainder)
+    return 0
 
 
 def clean(args, remainder):
     build_tools.clean.clean(args)
-
+    return 0
 
 def codesign(args, remainder):
     cmd = ['pew', 'codesign']
