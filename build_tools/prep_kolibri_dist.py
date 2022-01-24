@@ -53,10 +53,15 @@ def preseed_kolibri(whl):
     subprocess.call(['pip', 'install', '--target', kolibri_env, whl])
     port = 16294
     kolibri_bin = 'tmpenv/bin/kolibri'
-    subprocess.Popen([kolibri_bin, 'start', '--port={}'.format(port)], env=env)
+    kolibri_proc = subprocess.Popen([kolibri_bin, 'start', '--port={}'.format(port)], env=env)
     wait_for_kolibri(port)
 
-    subprocess.check_call([kolibri_bin, 'stop'], env=env)
+    try:
+        subprocess.check_call([kolibri_bin, 'stop'], env=env)
+    except:
+        #
+        kolibri_proc.kill()
+        kolibir_proc.wait(30)
 
     subprocess.run([kolibri_bin, 'manage', 'deprovision'], input=b"yes\nyes", env=env)
     subdirs_to_remove = ['logs', 'process_cache', 'sessions']
