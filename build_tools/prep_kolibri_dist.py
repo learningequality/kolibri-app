@@ -59,9 +59,8 @@ def preseed_kolibri(whl):
     try:
         subprocess.check_call([kolibri_bin, 'stop'], env=env)
     except:
-        #
         kolibri_proc.kill()
-        kolibir_proc.wait(30)
+        kolibri_proc.wait(30)
 
     subprocess.run([kolibri_bin, 'manage', 'deprovision'], input=b"yes\nyes", env=env)
     subdirs_to_remove = ['logs', 'process_cache', 'sessions']
