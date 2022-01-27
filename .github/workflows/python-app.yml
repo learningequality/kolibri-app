@@ -23,9 +23,10 @@ jobs:
           pip install flake8 pytest
           pip install -r requirements-win.txt
           pip install -e .
+      - name: Prep Kolibri dist
+        run: kapew prep-kolibri-dist --exclude-prereleases
       - name: Build app
         run: |
-          # kapew prep-kolibri-dist --exclude-prereleases
           kapew build
           kapew package
       - name: GH Release
