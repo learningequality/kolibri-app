@@ -14,6 +14,7 @@ import build_tools.version
 
 def prep_kolibri_dist(args, remainder):
     build_tools.prep_kolibri_dist.update_kolibri(args)
+    print("prep_kolibri_dist finished.")
     return 0
 
 
@@ -118,7 +119,9 @@ def main():
     prebuild.set_defaults(func=prep_kolibri_dist)
 
     args, remainder = parser.parse_known_args()
-    sys.exit(args.func(args, remainder))
+    result = args.func(args, remainder)
+    print(f"result = {result}")
+    sys.exit(result)
 
 
 
