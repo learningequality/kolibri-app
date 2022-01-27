@@ -25,7 +25,7 @@ jobs:
           pip install -e .
       - name: Build app
         run: |
-          kapew prep-kolibri-dist --exclude-prereleases
+          # kapew prep-kolibri-dist --exclude-prereleases
           kapew build
           kapew package
       - name: GH Release
