@@ -1,3 +1,5 @@
 -r requirements.in
 py2app==0.24
 wxPython==4.0.6
+# wxPython doesn't pin numpy, which has already dropped support for 3.6, so pick the latest 3.6 compatible version
+numpy==1.19

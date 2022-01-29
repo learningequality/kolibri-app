@@ -18,10 +18,10 @@ idna==2.10                # via cryptography, requests
 mac-alias==2.1.0          # via dmgbuild
 macholib==1.14            # via py2app
 modulegraph==0.18         # via py2app
-numpy==1.19.4             # via wxpython
+numpy==1.19               # via -r requirements-mac.in, wxpython
 openstep-parser==1.5.3    # via pbxproj
 pbxproj==3.2.0            # via pyeverywhere
-pillow==8.0.1             # via wxpython
+pillow==7.2.0             # via wxpython
 py2app==0.24              # via -r requirements-mac.in
 pycparser==2.20           # via cffi
 requests==2.24.0          # via -r requirements.in, pyeverywhere
