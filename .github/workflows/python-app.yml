@@ -24,6 +24,8 @@ jobs:
           pip install -r requirements-win.txt
           pip install -e .
       - name: Build app
+        env:
+          BUILDKITE_BUILD_NUMBER: ${{ github.run_number }}
         shell: cmd
         run: |
           kapew prep-kolibri-dist --exclude-prereleases
@@ -80,6 +82,7 @@ jobs:
         MAC_DEV_ID_EMAIL: ${{ secrets.MAC_DEV_ID_EMAIL }}
         MAC_APP_PASSWORD: ${{ secrets.MAC_APP_PASSWORD }}
         MAC_NOTARIZATION_PROVIDER: ${{ secrets.MAC_NOTARIZATION_PROVIDER }}
+        BUILDKITE_BUILD_NUMBER: ${{ github.run_number }}
       run: |
         . .py3env/bin/activate
         kapew prep-kolibri-dist --exclude-prereleases
