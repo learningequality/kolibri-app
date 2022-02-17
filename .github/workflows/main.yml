@@ -44,20 +44,6 @@ jobs:
         run: |
           C:\msys64\usr\bin\patch.exe src\kolibri\utils\server.py patches\kolibri-utils-server.diff
 
-      # FIXME: Remove this patch when the change is released in Kolibri
-      # https://phabricator.endlessm.com/T32889
-      # PR: https://github.com/learningequality/kolibri/pull/9002
-      - name : Patch Kolibri with Change default ordering to a joint of "lft", "id"
-        run: |
-          C:\msys64\usr\bin\patch.exe src\kolibri\core\content\api.py patches\0001-Content-API-Change-default-ordering-to-a-joint-of-lf.patch
-
-      # FIXME: Remove this patch when the change is released in Kolibri
-      # https://phabricator.endlessm.com/T33011
-      # PR: https://github.com/learningequality/kolibri/pull/9059
-      - name : Patch Kolibri with Remove duplicates for tag filtering
-        run: |
-          C:\msys64\usr\bin\patch.exe src\kolibri\core\content\api.py patches\0001-API-Remove-duplicates-for-tag-filtering.patch
-
       - name: Build
         run: |
           python kapew.py build
