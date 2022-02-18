@@ -32,6 +32,26 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-win.txt
 
+
+      - name: Checkout pyinstaller
+        uses: actions/checkout@v2
+        with:
+          repository: pyinstaller/pyinstaller
+          path: pyinstaller
+          ref: v4.9
+
+      - name: Build pyinstaller bootloader
+        run: |
+          python waf all --target-arch=32bit
+        working-directory: pyinstaller/bootloader
+
+      - name: Install pyinstaller
+        run: |
+          python setup.py install
+        working-directory: pyinstaller
+        env:
+          PYINSTALLER_COMPILE_BOOTLOADER: 1
+
       - name: Prep kolibri dist
         run: |
           python kapew.py prep-kolibri-dist --skip-preseed --exclude-prereleases
