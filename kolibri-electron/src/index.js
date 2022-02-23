@@ -138,6 +138,7 @@ async function checkVersion() {
   console.log(`${kolibriHomeVersion} < ${pluginVersion}`);
   if (kolibriHomeVersion < pluginVersion) {
     console.log('Newer version, replace the .endless-key directory and cleaning cache');
+    await fsExtra.remove(KOLIBRI_HOME);
     await fsExtra.copy(KOLIBRI_HOME_TEMPLATE, KOLIBRI_HOME);
     mainWindow.webContents.session.clearCache();
     return true;
@@ -215,7 +216,7 @@ async function createWindow() {
   const isDataAvailable = await loadKolibriEnv();
 
   await mainWindow.loadFile(await getLoadingScreen());
-  
+
   if (!isDataAvailable) {
     mainWindow.webContents.executeJavaScript('show_error()', true);
   } else {
