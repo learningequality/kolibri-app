@@ -10,8 +10,6 @@ future==0.18.2
     # via pefile
 pefile==2021.5.24
     # via pyinstaller
-pyinstaller==3.6
-    # via -r .\requirements-win.in
 pywin32-ctypes==0.2.0
     # via pyinstaller
 
