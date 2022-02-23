@@ -74,7 +74,7 @@ now run the app from source or build and package the app.
 
 `kapew build`
 
-Outputs appear in the `dist/[platform]` folder. On *nix platforms, you can build
+Outputs appear in the `dist/[platform]` folder. On \*nix platforms, you can build
 for android by running `kapew build android`. Add `--docker` to build using Docker.
 
 #### Creating a signed build
@@ -98,3 +98,13 @@ Make sure these steps are performed before packaging the build.
 
 Outputs appear in the `package/[platform]` subdirectory. 
 
+
+## Releasing
+
+Make sure that you update the `KEY_VERSION` constant in
+`kolibri-electron/src/index.js` before creating a new release to make sure that the
+new `KOLIBRI_HOME` doesn't override existing ones for other Key releases.
+
+Create a new tag will trigger the release process and will create a new release
+in the github page with the corresponding `kolibri-windows.zip` file attached
+to the new release.
