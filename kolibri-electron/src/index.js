@@ -17,6 +17,7 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
 
 const NULL_PLUGIN_VERSION = '0';
 const KOLIBRI = 'http://localhost:5000';
+const KEY_VERSION = 'iguana';
 let pingTimeout = 40;
 let mainWindow = null;
 let loadRetries = 0;
@@ -27,7 +28,7 @@ let django = null;
 
 let KOLIBRI_HOME_TEMPLATE = '';
 let KOLIBRI_EXTENSIONS = '';
-let KOLIBRI_HOME = path.join(os.homedir(), '.endless-key');
+let KOLIBRI_HOME = path.join(os.homedir(), `.endless-key-${KEY_VERSION}`);
 
 function removePidFile() {
   const pidFile = path.join(KOLIBRI_HOME, 'server.pid');
@@ -138,6 +139,7 @@ async function checkVersion() {
   console.log(`${kolibriHomeVersion} < ${pluginVersion}`);
   if (kolibriHomeVersion < pluginVersion) {
     console.log('Newer version, replace the .endless-key directory and cleaning cache');
+    await fsExtra.remove(KOLIBRI_HOME);
     await fsExtra.copy(KOLIBRI_HOME_TEMPLATE, KOLIBRI_HOME);
     mainWindow.webContents.session.clearCache();
     return true;
@@ -215,7 +217,7 @@ async function createWindow() {
   const isDataAvailable = await loadKolibriEnv();
 
   await mainWindow.loadFile(await getLoadingScreen());
-  
+
   if (!isDataAvailable) {
     mainWindow.webContents.executeJavaScript('show_error()', true);
   } else {
