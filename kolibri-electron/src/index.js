@@ -219,14 +219,14 @@ async function createWindow() {
   await mainWindow.loadFile(await getLoadingScreen());
 
   if (!isDataAvailable) {
-    mainWindow.webContents.executeJavaScript('show_error()', true);
+    console.log('No Endless Key data found. Loading default Kolibri');
   } else {
     const firstLaunch = await checkVersion();
     if (firstLaunch) {
       mainWindow.webContents.executeJavaScript('firstLaunch()', true);
     }
-    waitForKolibriUp(mainWindow);
   }
+  waitForKolibriUp(mainWindow);
 
   return isDataAvailable;
 };
@@ -257,9 +257,7 @@ const runKolibri = () => {
 app.on('ready', () => {
   createWindow()
     .then((isDataAvailable) => {
-      if (isDataAvailable) {
-        runKolibri();
-      }
+      runKolibri();
     });
 });
 
