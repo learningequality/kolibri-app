@@ -56,6 +56,10 @@ jobs:
         run: |
           python kapew.py prep-kolibri-dist --skip-preseed --exclude-prereleases
 
+      - name: Add kolibri_zim_plugin to Kolibri's dist packages
+        run: |
+          pip install kolibri-zim-plugin --target="src\kolibri\dist"
+
       - name : Patch Kolibri's server code to avoid Windows firewall prompts
         run: |
           C:\msys64\usr\bin\patch.exe src\kolibri\utils\server.py patches\kolibri-utils-server.diff
