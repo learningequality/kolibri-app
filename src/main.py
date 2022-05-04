@@ -7,6 +7,7 @@ import sys
 from functools import partial
 
 from config import KOLIBRI_PORT
+from kolibri_tools.utils import initialize_plugins
 from kolibri_tools.utils import start_kolibri_server
 
 
@@ -102,6 +103,7 @@ class Application:
         os.environ["KOLIBRI_HTTP_PORT"] = str(self.port)
 
         logging.info("Preparing to start Kolibri server...")
+        initialize_plugins()
         start_kolibri_server()
 
 
