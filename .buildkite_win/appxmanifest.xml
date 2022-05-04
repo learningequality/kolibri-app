@@ -6,9 +6,9 @@
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10">
   <Identity Name="EndlessOSFoundation.EndlessKey.app" Version="0.1.10.1" Publisher="CN=Endless OS Foundation LLC, O=Endless OS Foundation LLC, L=San Francisco, S=California, C=US, SERIALNUMBER=7858239, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, OID.1.3.6.1.4.1.311.60.2.1.3=US" ProcessorArchitecture="x64" />
   <Properties>
-    <DisplayName>Endless Key app</DisplayName>
+    <DisplayName>Endless Key</DisplayName>
     <PublisherDisplayName>Endless OS Foundation LLC</PublisherDisplayName>
-    <Description>Endless Key app</Description>
+    <Description>Endless Key</Description>
     <Logo>resources/app/src/icon.png</Logo>
   </Properties>
   <Resources>
@@ -22,11 +22,11 @@
   </Capabilities>
   <Applications>
     <Application Id="endlesskeyapp" Executable="kolibri-electron.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap3:VisualElements DisplayName="Endless Key app" Description="Endless Key app" Square150x150Logo="resources/app/src/icon.png" Square44x44Logo="resources/app/src/icon.png" BackgroundColor="#FFFFFF" />
+      <uap3:VisualElements DisplayName="Endless Key" Description="Endless Key" Square150x150Logo="resources/app/src/icon.png" Square44x44Logo="resources/app/src/icon.png" BackgroundColor="#FFFFFF" />
       <Extensions>
         <uap3:Extension Category="windows.appExecutionAlias" EntryPoint="Windows.FullTrustApplication">
           <uap3:AppExecutionAlias>
-            <desktop:ExecutionAlias Alias="kolibri-electron.exe" />
+            <desktop:ExecutionAlias Alias="endless-key.exe" />
           </uap3:AppExecutionAlias>
         </uap3:Extension>
       </Extensions>
