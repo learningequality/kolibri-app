@@ -60,6 +60,10 @@ jobs:
         run: |
           pip install kolibri-zim-plugin --target="src\kolibri\dist"
 
+      - name: Add kolibri_explore_plugin to Kolibri's dist packages
+        run: |
+          pip install kolibri-explore-plugin --target="src\kolibri\dist"
+
       - name : Patch Kolibri's server code to avoid Windows firewall prompts
         run: |
           C:\msys64\usr\bin\patch.exe src\kolibri\utils\server.py patches\kolibri-utils-server.diff
