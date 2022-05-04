@@ -26,7 +26,7 @@
       <Extensions>
         <uap3:Extension Category="windows.appExecutionAlias" EntryPoint="Windows.FullTrustApplication">
           <uap3:AppExecutionAlias>
-            <desktop:ExecutionAlias Alias="kolibri-electron.exe" />
+            <desktop:ExecutionAlias Alias="endless-key.exe" />
           </uap3:AppExecutionAlias>
         </uap3:Extension>
       </Extensions>
