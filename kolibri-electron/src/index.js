@@ -29,6 +29,7 @@ let django = null;
 let KOLIBRI_HOME_TEMPLATE = '';
 let KOLIBRI_EXTENSIONS = path.join(__dirname, 'Kolibri', 'kolibri', 'dist');
 let KOLIBRI_HOME = path.join(os.homedir(), `.endless-key-${KEY_VERSION}`);
+const AUTOPROVISION_FILE = path.join(__dirname, 'automatic_provision.json');
 
 function removePidFile() {
   const pidFile = path.join(KOLIBRI_HOME, 'server.pid');
@@ -65,8 +66,15 @@ async function getEndlessKeyDataPath() {
 
 async function loadKolibriEnv() {
   const keyData = await getEndlessKeyDataPath();
+  env.KOLIBRI_HOME = KOLIBRI_HOME;
 
   if (!keyData) {
+    // Copy the provision file because Kolibri removes after applying
+    const removable_provision_file = path.join(__dirname, 'provision.json')
+    if (!fs.existsSync(removable_provision_file)) {
+      await fsExtra.copy(AUTOPROVISION_FILE, removable_provision_file);
+    }
+    env.KOLIBRI_AUTOMATIC_PROVISION_FILE = removable_provision_file;
     env.KOLIBRI_APPS_BUNDLE_PATH = path.join(__dirname, "apps-bundle", "apps");
 
     return false;
@@ -79,7 +87,6 @@ async function loadKolibriEnv() {
 
   env.KOLIBRI_CONTENT_FALLBACK_DIRS = path.join(keyData, 'content');
   env.PYTHONPATH = KOLIBRI_EXTENSIONS;
-  env.KOLIBRI_HOME = KOLIBRI_HOME;
 
   return true;
 }
