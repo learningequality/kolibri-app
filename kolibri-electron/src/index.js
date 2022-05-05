@@ -67,6 +67,8 @@ async function loadKolibriEnv() {
   const keyData = await getEndlessKeyDataPath();
 
   if (!keyData) {
+    env.KOLIBRI_APPS_BUNDLE_PATH = path.join(__dirname, "apps-bundle", "apps");
+
     return false;
   }
 
