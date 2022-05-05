@@ -1,0 +1,110 @@
+name: Test signing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2019
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+          architecture: 'x86'
+
+      - name: Set up Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          cache: 'yarn'
+          cache-dependency-path: '**/yarn.lock'
+
+      - name: Install python requirements
+        run: |
+          pip install wheel
+          pip install -r requirements.txt
+          pip install -r requirements-win.txt
+
+      - name: Checkout pyinstaller
+        uses: actions/checkout@v2
+        with:
+          repository: pyinstaller/pyinstaller
+          path: pyinstaller
+          ref: v4.9
+
+      - name: Build pyinstaller bootloader
+        run: |
+          python waf all --target-arch=32bit
+        working-directory: pyinstaller/bootloader
+
+      - name: Install pyinstaller
+        run: |
+          python setup.py install
+        working-directory: pyinstaller
+        env:
+          PYINSTALLER_COMPILE_BOOTLOADER: 1
+
+      - name: Prep kolibri dist
+        run: |
+          python kapew.py prep-kolibri-dist --skip-preseed --exclude-prereleases
+
+      - name : Patch Kolibri's server code to avoid Windows firewall prompts
+        run: |
+          C:\msys64\usr\bin\patch.exe src\kolibri\utils\server.py patches\kolibri-utils-server.diff
+
+      - name: Build
+        run: |
+          python kapew.py build
+
+      - name: Install electron-forge
+        working-directory: kolibri-electron
+        run: yarn global add @electron-forge/cli
+
+      - name: Install electron dependencies
+        working-directory: kolibri-electron
+        run: yarn install
+
+      - name: Build electron app
+        working-directory: kolibri-electron
+        run: yarn make --arch=ia32
+
+      - name: Create kolibri-windows
+        run: |
+          mv kolibri-electron/out/kolibri-electron-win32-ia32 kolibri-windows
+
+          mv src/kolibri dist/win/Kolibri
+          mv dist/win/Kolibri kolibri-windows/resources/app/src/
+
+      - name: Packaging
+        run: |
+          cp .buildkite_win/appxmanifest.xml kolibri-windows/
+          & "${Env:ProgramFiles(x86)}\Windows Kits\10\App Certification Kit\makeappx.exe" pack /d kolibri-windows /p endlesskeyapp.unsigned.appx
+
+      - name: Sign artifact for testing
+        shell: pwsh
+        env:
+          SIGNPATH_ORG_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_USER_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -name SignPath
+          Submit-SigningRequest `
+            -CIUserToken $env:SIGNPATH_USER_TOKEN `
+            -OrganizationId $env:SIGNPATH_ORG_ID `
+            -ProjectSlug Endless_Apps `
+            -SigningPolicySlug Endless_Apps_Test_Signing_for_Microsoft_Store `
+            -ArtifactConfigurationSlug Endless_Key_APPX_Package_for_Microsoft_Store `
+            -InputArtifactPath endlesskeyapp.unsigned.appx `
+            -OutputArtifactPath endlesskeyapp.appx `
+            -WaitForCompletion
+
+      - name: Upload signed APPX
+        uses: actions/upload-artifact@v2
+        with:
+          name: "endlesskeyapp.appx"
+          path: "endlesskeyapp.appx"
