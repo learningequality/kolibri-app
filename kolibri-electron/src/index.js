@@ -27,7 +27,7 @@ let maxRetries = 3;
 let django = null;
 
 let KOLIBRI_HOME_TEMPLATE = '';
-let KOLIBRI_EXTENSIONS = '';
+let KOLIBRI_EXTENSIONS = path.join(__dirname, 'Kolibri', 'kolibri', 'dist');
 let KOLIBRI_HOME = path.join(os.homedir(), `.endless-key-${KEY_VERSION}`);
 
 function removePidFile() {
@@ -72,7 +72,9 @@ async function loadKolibriEnv() {
     return false;
   }
 
-  KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
+  if (fs.existsSync(path.join(keyData, 'extensions'))) {
+    KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
+  }
   KOLIBRI_HOME_TEMPLATE = path.join(keyData, 'preseeded_kolibri_home');
 
   env.KOLIBRI_CONTENT_FALLBACK_DIRS = path.join(keyData, 'content');
@@ -142,7 +144,10 @@ async function checkVersion() {
   if (kolibriHomeVersion < pluginVersion) {
     console.log('Newer version, replace the .endless-key directory and cleaning cache');
     await fsExtra.remove(KOLIBRI_HOME);
-    await fsExtra.copy(KOLIBRI_HOME_TEMPLATE, KOLIBRI_HOME);
+
+    if (fs.existsSync(KOLIBRI_HOME_TEMPLATE)) {
+      await fsExtra.copy(KOLIBRI_HOME_TEMPLATE, KOLIBRI_HOME);
+    }
     mainWindow.webContents.session.clearCache();
     return true;
   }
