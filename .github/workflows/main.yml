@@ -90,7 +90,25 @@ jobs:
       - name: Packaging
         run: |
           cp .buildkite_win/appxmanifest.xml kolibri-windows/
-          & "${Env:ProgramFiles(x86)}\Windows Kits\10\App Certification Kit\makeappx.exe" pack /d kolibri-windows /p endlesskeyapp.appx
+          & "${Env:ProgramFiles(x86)}\Windows Kits\10\App Certification Kit\makeappx.exe" pack /d kolibri-windows /p endlesskeyapp.unsigned.appx
+
+      - name: Signing
+        shell: pwsh
+        env:
+          SIGNPATH_ORG_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_USER_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -name SignPath
+          Submit-SigningRequest `
+            -CIUserToken $env:SIGNPATH_USER_TOKEN `
+            -OrganizationId $env:SIGNPATH_ORG_ID `
+            -ProjectSlug Endless_Apps `
+            -SigningPolicySlug Endless_Apps_Test_Signing_for_Microsoft_Store `
+            -ArtifactConfigurationSlug Endless_Key_APPX_Package_for_Microsoft_Store `
+            -InputArtifactPath endlesskeyapp.unsigned.appx `
+            -OutputArtifactPath endlesskeyapp.appx `
+            -WaitForCompletion
 
       - name: Release
         uses: softprops/action-gh-release@v1
