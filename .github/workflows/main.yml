@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      sign_test_build:
+        type: boolean
+        description: 'Sign with our test certificate (even if run on a release tag).'
+        required: true
+        default: false
 
 jobs:
   build:
@@ -124,7 +130,8 @@ jobs:
           path: "endlesskeyapp.unsigned.appx"
 
       - name: Sign artifact for release
-        if: startsWith(github.ref, 'refs/tags/')
+        id: sign_for_release
+        if: startsWith(github.ref, 'refs/tags/') && github.event.inputs.sign_test_build == false
         shell: pwsh
         env:
           SIGNPATH_ORG_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
@@ -142,9 +149,28 @@ jobs:
             -OutputArtifactPath endlesskeyapp.appx `
             -WaitForCompletion
 
+      - name: Sign artifact for testing
+        id: sign_for_testing
+        if: github.event.inputs.sign_test_build
+        shell: pwsh
+        env:
+          SIGNPATH_ORG_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_USER_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -name SignPath
+          Submit-SigningRequest `
+            -CIUserToken $env:SIGNPATH_USER_TOKEN `
+            -OrganizationId $env:SIGNPATH_ORG_ID `
+            -ProjectSlug Endless_Apps `
+            -SigningPolicySlug Endless_Apps_Test_Signing_for_Microsoft_Store `
+            -ArtifactConfigurationSlug Endless_Key_APPX_Package_for_Microsoft_Store `
+            -InputArtifactPath endlesskeyapp.unsigned.appx `
+            -OutputArtifactPath endlesskeyapp.appx `
+            -WaitForCompletion
 
       - name: Upload signed APPX
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.sign_for_release.outcome == 'success' || steps.sign_for_testing.outcome == 'success'
         uses: actions/upload-artifact@v2
         with:
           name: "endlesskeyapp.appx"
