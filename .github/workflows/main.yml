@@ -106,10 +106,22 @@ jobs:
         run: Compress-Archive -Path kolibri-windows\* -DestinationPath kolibri-windows.zip
         shell: pwsh
 
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v2
+        with:
+          name: "kolibri-windows.zip"
+          path: "kolibri-windows.zip"
+
       - name: Packaging
         run: |
           cp .buildkite_win/appxmanifest.xml kolibri-windows/
           & "${Env:ProgramFiles(x86)}\Windows Kits\10\App Certification Kit\makeappx.exe" pack /d kolibri-windows /p endlesskeyapp.unsigned.appx
+
+      - name: Upload unsigned APPX
+        uses: actions/upload-artifact@v2
+        with:
+          name: "endlesskeyapp.unsigned.appx"
+          path: "endlesskeyapp.unsigned.appx"
 
       - name: Sign artifact for release
         if: startsWith(github.ref, 'refs/tags/')
@@ -130,11 +142,6 @@ jobs:
             -OutputArtifactPath endlesskeyapp.appx `
             -WaitForCompletion
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: kolibri-windows.zip endlesskeyapp.appx
 
       - name: Upload signed APPX
         if: startsWith(github.ref, 'refs/tags/')
@@ -143,15 +150,8 @@ jobs:
           name: "endlesskeyapp.appx"
           path: "endlesskeyapp.appx"
 
-      - name: Upload unsigned APPX
-        if: startsWith(github.ref, 'refs/tags/') != true
-        uses: actions/upload-artifact@v2
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: "endlesskeyapp.unsigned.appx"
-          path: "endlesskeyapp.unsigned.appx"
-
-      - name: Upload ZIP
-        uses: actions/upload-artifact@v2
-        with:
-          name: "kolibri-windows.zip"
-          path: "kolibri-windows.zip"
+          files: kolibri-windows.zip endlesskeyapp.appx
