@@ -27,8 +27,9 @@ let maxRetries = 3;
 let django = null;
 
 let KOLIBRI_HOME_TEMPLATE = '';
-let KOLIBRI_EXTENSIONS = '';
+let KOLIBRI_EXTENSIONS = path.join(__dirname, 'Kolibri', 'kolibri', 'dist');
 let KOLIBRI_HOME = path.join(os.homedir(), `.endless-key-${KEY_VERSION}`);
+const AUTOPROVISION_FILE = path.join(__dirname, 'automatic_provision.json');
 
 function removePidFile() {
   const pidFile = path.join(KOLIBRI_HOME, 'server.pid');
@@ -65,17 +66,27 @@ async function getEndlessKeyDataPath() {
 
 async function loadKolibriEnv() {
   const keyData = await getEndlessKeyDataPath();
+  env.KOLIBRI_HOME = KOLIBRI_HOME;
 
   if (!keyData) {
+    // Copy the provision file because Kolibri removes after applying
+    const removable_provision_file = path.join(__dirname, 'provision.json')
+    if (!fs.existsSync(removable_provision_file)) {
+      await fsExtra.copy(AUTOPROVISION_FILE, removable_provision_file);
+    }
+    env.KOLIBRI_AUTOMATIC_PROVISION_FILE = removable_provision_file;
+    env.KOLIBRI_APPS_BUNDLE_PATH = path.join(__dirname, "apps-bundle", "apps");
+
     return false;
   }
 
-  KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
+  if (fs.existsSync(path.join(keyData, 'extensions'))) {
+    KOLIBRI_EXTENSIONS = path.join(keyData, 'extensions');
+  }
   KOLIBRI_HOME_TEMPLATE = path.join(keyData, 'preseeded_kolibri_home');
 
   env.KOLIBRI_CONTENT_FALLBACK_DIRS = path.join(keyData, 'content');
   env.PYTHONPATH = KOLIBRI_EXTENSIONS;
-  env.KOLIBRI_HOME = KOLIBRI_HOME;
 
   return true;
 }
@@ -140,7 +151,10 @@ async function checkVersion() {
   if (kolibriHomeVersion < pluginVersion) {
     console.log('Newer version, replace the .endless-key directory and cleaning cache');
     await fsExtra.remove(KOLIBRI_HOME);
-    await fsExtra.copy(KOLIBRI_HOME_TEMPLATE, KOLIBRI_HOME);
+
+    if (fs.existsSync(KOLIBRI_HOME_TEMPLATE)) {
+      await fsExtra.copy(KOLIBRI_HOME_TEMPLATE, KOLIBRI_HOME);
+    }
     mainWindow.webContents.session.clearCache();
     return true;
   }
@@ -176,7 +190,7 @@ const waitForKolibriUp = () => {
   }
 
   http.get(`${KOLIBRI}/api/public/info`, (response) => {
-    mainWindow.loadURL(KOLIBRI);
+    mainWindow.loadURL(`${KOLIBRI}/explore`);
     updateVersion();
   }).on("error", (error) => {
     console.log("Error: " + error.message);
@@ -219,14 +233,14 @@ async function createWindow() {
   await mainWindow.loadFile(await getLoadingScreen());
 
   if (!isDataAvailable) {
-    mainWindow.webContents.executeJavaScript('show_error()', true);
+    console.log('No Endless Key data found. Loading default Kolibri');
   } else {
     const firstLaunch = await checkVersion();
     if (firstLaunch) {
       mainWindow.webContents.executeJavaScript('firstLaunch()', true);
     }
-    waitForKolibriUp(mainWindow);
   }
+  waitForKolibriUp(mainWindow);
 
   return isDataAvailable;
 };
@@ -257,9 +271,7 @@ const runKolibri = () => {
 app.on('ready', () => {
   createWindow()
     .then((isDataAvailable) => {
-      if (isDataAvailable) {
-        runKolibri();
-      }
+      runKolibri();
     });
 });
 

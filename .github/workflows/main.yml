@@ -56,6 +56,24 @@ jobs:
         run: |
           python kapew.py prep-kolibri-dist --skip-preseed --exclude-prereleases
 
+      - name: Add kolibri_zim_plugin to Kolibri's dist packages
+        run: |
+          pip install kolibri-zim-plugin --target="src\kolibri\dist"
+
+      - name: Add kolibri_explore_plugin to Kolibri's dist packages
+        run: |
+          pip install kolibri-explore-plugin --target="src\kolibri\dist"
+
+      - uses: robinraju/release-downloader@v1.3
+        with:
+          repository: "endlessm/kolibri-explore-plugin"
+          latest: true
+          fileName: "apps-bundle.zip"
+
+      - name: Add apps-bundle to Kolibri's dist packages
+        run: |
+          7z x apps-bundle.zip -osrc/apps-bundle
+
       - name : Patch Kolibri's server code to avoid Windows firewall prompts
         run: |
           C:\msys64\usr\bin\patch.exe src\kolibri\utils\server.py patches\kolibri-utils-server.diff
@@ -82,6 +100,7 @@ jobs:
 
           mv src/kolibri dist/win/Kolibri
           mv dist/win/Kolibri kolibri-windows/resources/app/src/
+          mv src/apps-bundle kolibri-windows/resources/app/src/
 
       - name: Compress
         run: Compress-Archive -Path kolibri-windows\* -DestinationPath kolibri-windows.zip
