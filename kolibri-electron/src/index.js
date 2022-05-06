@@ -190,7 +190,7 @@ const waitForKolibriUp = () => {
   }
 
   http.get(`${KOLIBRI}/api/public/info`, (response) => {
-    mainWindow.loadURL(KOLIBRI);
+    mainWindow.loadURL(`${KOLIBRI}/explore`);
     updateVersion();
   }).on("error", (error) => {
     console.log("Error: " + error.message);
