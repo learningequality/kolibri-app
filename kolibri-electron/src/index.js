@@ -70,11 +70,15 @@ async function loadKolibriEnv() {
 
   if (!keyData) {
     // Copy the provision file because Kolibri removes after applying
-    const removable_provision_file = path.join(__dirname, 'provision.json')
-    if (!fs.existsSync(removable_provision_file)) {
-      await fsExtra.copy(AUTOPROVISION_FILE, removable_provision_file);
+    let provision_file = path.join(__dirname, 'provision.json');
+    if (!fs.existsSync(provision_file)) {
+      try {
+        fsExtra.copySync(AUTOPROVISION_FILE, provision_file);
+      } catch {
+        provision_file = AUTOPROVISION_FILE;
+      }
     }
-    env.KOLIBRI_AUTOMATIC_PROVISION_FILE = removable_provision_file;
+    env.KOLIBRI_AUTOMATIC_PROVISION_FILE = provision_file;
     env.KOLIBRI_APPS_BUNDLE_PATH = path.join(__dirname, "apps-bundle", "apps");
 
     return false;
