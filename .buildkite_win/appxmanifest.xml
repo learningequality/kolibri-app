@@ -4,7 +4,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10">
-  <Identity Name="EndlessOSFoundation.EndlessKey.app" Version="0.1.10.1" Publisher="CN=EOSF Microsoft Publishing 2022, O=Endless OS Foundation LLC" ProcessorArchitecture="x64" />
+  <Identity Name="EndlessOSFoundation.EndlessKey.app" Version="0.1.10.1" Publisher="CN=Endless OS Foundation LLC, O=Endless OS Foundation LLC, L=San Francisco, S=California, C=US, SERIALNUMBER=7858239, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, OID.1.3.6.1.4.1.311.60.2.1.3=US" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Endless Key</DisplayName>
     <PublisherDisplayName>Endless OS Foundation LLC</PublisherDisplayName>
