@@ -7,8 +7,18 @@ from kolibri_app.application import KolibriApp
 from kolibri_app.constants import WINDOWS
 from kolibri_app.logger import logging
 
+if WINDOWS:
+    from kolibri_app.server_process import ServerProcess
+
 
 def main():
+    # This block is the entry point for the server subprocess
+    if WINDOWS and "--run-as-server" in sys.argv:
+        logging.info("Starting in server mode...")
+        server = ServerProcess()
+        server.run()
+        sys.exit(0)
+
     if WINDOWS:
         import winreg
 
