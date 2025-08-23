@@ -34,6 +34,7 @@ OutputDir=dist-installer
 OutputBaseFilename=kolibri-setup-{#AppVersion}
 WizardStyle=modern
 PrivilegesRequired=admin
+ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#AppExeName}
 SetupLogging=yes
 CloseApplicationsFilter={#AppExeName}
@@ -41,13 +42,17 @@ CloseApplicationsFilter={#AppExeName}
 [Registry]
 ; This registry key is used to detect the installed version for upgrades/repairs.
 Root: HKLM; Subkey: "Software\Kolibri"; ValueType: string; ValueName: "Version"; ValueData: "{#AppVersion}"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Kolibri"; ValueType: dword; ValueName: "ShowTrayIcon"; ValueData: "1"; Tasks: installservice
+Root: HKLM; Subkey: "Software\Kolibri"; ValueType: dword; ValueName: "ShowTrayIcon"; ValueData: "0"; Tasks: not installservice
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueName: "KolibriTray"; Flags: uninsdeletevalue
 
 [Tasks]
-Name: "installservice"; Description: "Install Kolibri as a Windows Service (starts on boot)"; GroupDescription: "Installation Type:";
+Name: "installservice"; Description: "Run Kolibri automatically when the computer starts"; GroupDescription: "Installation Type:";
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}";
 
 [Dirs]
 Name: "{#KolibriDataDir}"
+Name: "{#KolibriDataDir}\logs"
 
 [Files]
 ; WebView2 runtime installer, placed in {tmp} and deleted after installation
@@ -62,11 +67,11 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-; Run WebView2 installer only if runtime is not already installed
+; Run WebView2 installer only if runtime is not already installed and windows version is not legacy (7, 8, 8.1)
 Filename: "{tmp}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; \
     Parameters: "/silent /install"; \
     Flags: runhidden waituntilterminated; \
-    Check: not IsWebView2Installed
+    Check: not IsWebView2Installed and ShouldInstallWebView2
 ; Launch app UI after installation completes
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall shellexec
 
@@ -86,6 +91,146 @@ const
   TASKKILL_ERR_NOT_FOUND = 128;
   ICACLS_EXE_PATH = '{sys}\icacls.exe';
   SC_EXE_PATH = '{sys}\sc.exe';
+
+procedure TerminateLegacyApp();
+var
+  ResultCode: Integer;
+begin
+  // First, attempt to terminate the running legacy application process to unlock files.
+  Log('Attempting to terminate the legacy Kolibri process Kolibri.exe...');
+  Exec(ExpandConstant('{#TaskkillExePath}'),
+       '/F /IM "Kolibri.exe"',
+       '',
+       SW_HIDE, ewWaitUntilTerminated,
+       ResultCode);
+
+  if ResultCode = 0 then
+    Log('Successfully terminated the legacy Kolibri process.')
+  else if ResultCode = TASKKILL_ERR_NOT_FOUND then
+    Log('Legacy Kolibri process was not found running (this is normal).')
+  else
+    // Log a warning, but don't abort the installation. We'll still try to delete.
+    Log(Format('Warning: taskkill failed to terminate the legacy process with exit code: %d', [ResultCode]));
+end;
+
+// This procedure performs a forceful, silent cleanup of any legacy files and registry keys.
+procedure ForcefullyCleanUpLegacyApp();
+var
+  LegacyInstallPath: String;
+  LegacyAppId: String;
+begin
+  LegacyAppId := 'Kolibri-Foundation for Learning Equality_is1';
+  Log('Starting forceful cleanup of legacy application remnants.');
+
+  // Check if the legacy application is registered as installed.
+  if RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\' + LegacyAppId) then
+  begin
+    if RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\' + LegacyAppId, 'InstallLocation', LegacyInstallPath) then
+    begin
+      Log('Found legacy installation path in registry: ' + LegacyInstallPath);
+
+      if DirExists(LegacyInstallPath) then
+      begin
+        Log('Legacy directory exists. Deleting...');
+        if DelTree(LegacyInstallPath, True, True, True) then
+          Log('Successfully deleted legacy installation directory.')
+        else
+          Log('WARNING: Could not delete legacy installation directory at: ' + LegacyInstallPath);
+      end
+      else
+        Log('Legacy directory path found in registry, but it does not exist on disk: ' + LegacyInstallPath);
+    end
+    else
+    begin
+      Log('Could not read legacy InstallLocation from registry. The application files may remain if installed in a custom location.');
+    end;
+
+    Log('Deleting legacy uninstall registry key...');
+    if RegDeleteKeyIncludingSubkeys(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\' + LegacyAppId) then
+      Log('Successfully deleted legacy uninstall registry key.')
+    else
+      Log('WARNING: Failed to delete legacy uninstall registry key.');
+  end
+  else
+    Log('Legacy application uninstall key not found. No cleanup needed.');
+
+  // Clean up legacy desktop shortcut, if it exists.
+  if FileExists(ExpandConstant('{commondesktop}\Kolibri.lnk')) then
+  begin
+    Log('Deleting legacy desktop shortcut...');
+    if DeleteFile(ExpandConstant('{commondesktop}\Kolibri.lnk')) then
+        Log('Successfully deleted legacy desktop shortcut.')
+    else
+        Log('WARNING: Failed to delete legacy desktop shortcut.');
+  end;
+
+  Log('Forceful legacy cleanup finished.');
+end;
+
+// This procedure moves user data from the legacy per-user location to the new system-wide location.
+procedure MigrateLegacyUserData();
+var
+  LegacyAppId, SourcePath, DestPath, Params: String;
+  ResultCode: Integer;
+begin
+  LegacyAppId := 'Kolibri-Foundation for Learning Equality_is1';
+  Log('Checking if legacy user data migration is needed.');
+
+  // Condition 1: Only proceed if the legacy app was actually installed.
+  if not RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\' + LegacyAppId) then
+  begin
+    Log('Legacy application not detected. Skipping user data migration.');
+    Exit;
+  end;
+
+  // Define source and destination paths.
+  SourcePath := GetEnv('USERPROFILE') + '\.kolibri';
+  DestPath := ExpandConstant('{#KolibriDataDir}'); // Resolves to C:\ProgramData\kolibri
+
+  // Condition 2: Check if the old data folder actually exists.
+  if not DirExists(SourcePath) then
+  begin
+    Log('Legacy user data folder not found at: ' + SourcePath + '. No data to migrate.');
+    Exit;
+  end;
+
+  // Condition 3: SAFETY CHECK: Abort migration if a database file already exists in the new data folder.  if FileExists(DestPath + '\db.sqlite3') then
+  if FileExists(DestPath + '\db.sqlite3') then
+  begin
+    Log('WARNING: A database file (db.sqlite3) was found in the new data directory (' + DestPath + '). Migration will be skipped to prevent data loss.');
+    Exit;
+  end;
+
+
+  Log('Legacy user data found at "' + SourcePath + '". Migrating to "' + DestPath + '".');
+
+  // Use robocopy to move files with correct permissions.
+  // /E       - Copies subdirectories, including empty ones.
+  // /COPYALL - Copies all file info, including permissions (ACLs). CRITICAL for ProgramData.
+  // /MOVE    - Moves files and directories (deletes from source after copying).
+  // /NJH     - No Job Header.
+  // /NJS     - No Job Summary.
+  Params := '"' + SourcePath + '" "' + DestPath + '" /E /COPYALL /MOVE /NJH /NJS';
+
+  if Exec('robocopy.exe', Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    // Robocopy returns codes < 8 for success (e.g., 1 means files were copied successfully).
+    if ResultCode < 8 then
+      Log('User data migration successful. Robocopy exit code: ' + IntToStr(ResultCode))
+    else
+    begin
+      Log('ERROR: User data migration failed. Robocopy exit code: ' + IntToStr(ResultCode));
+      // Even if robocopy runs but fails, we should inform the user.
+      MsgBox('Kolibri was unable to automatically move your user data to the new location. Please move the contents of "' + SourcePath + '" to "' + DestPath + '" manually.', mbError, MB_OK);
+    end
+  end
+  else
+  begin
+    // This block runs if robocopy.exe itself could not be found or executed.
+    Log('ERROR: Failed to execute robocopy.exe. Ensure it is in the system PATH. Error code: ' + IntToStr(ResultCode));
+    MsgBox('Kolibri was unable to automatically move your user data to the new location. Please move the contents of "' + SourcePath + '" to "' + DestPath + '" manually.', mbError, MB_OK);
+  end;
+end;
 
 // Robust wrapper for executing external commands with error checking
 procedure ExecChecked(const Filename, Params, WorkingDir: String; const Description: String);
@@ -114,6 +259,35 @@ begin
    begin
       Log(Format('Command "%s" completed successfully.', [Description]));
    end;
+end;
+
+// Function to check if the OS is Windows 7, 8, or 8.1
+function IsLegacyWindows(): Boolean;
+var
+  WinVersion: TWindowsVersion;
+begin
+  GetWindowsVersionEx(WinVersion);
+
+  // Windows versions older than Windows 10 have a Major version number less than 10.
+  // (e.g., Win 7 is 6.1, Win 8 is 6.2, Win 8.1 is 6.3)
+  if WinVersion.Major < 10 then
+  begin
+    Log('Detected legacy Windows version');
+    Result := True;
+  end
+  else
+  begin
+    Log('Detected modern Windows version');
+    Result := False;
+  end;
+end;
+
+// This function will be called by the [Run] section's "Check" parameter.
+// It returns true ONLY if we should proceed with the WebView2 installation.
+function ShouldInstallWebView2(): Boolean;
+begin
+  // We should install WebView2 if the OS is NOT a legacy version.
+  Result := not IsLegacyWindows();
 end;
 
 // Check for existing versions and handle upgrade/downgrade/repair scenarios
@@ -239,71 +413,79 @@ begin
     AppDir := ExpandConstant('{app}');
     NssmPath := ExpandConstant('{#NssmExePath}');
 
-    // Check if user selected service installation
-    if (WizardIsTaskSelected('installservice')) then
+    Log('Post-install step: Installing or updating the Kolibri service...');
+
+    // STEP 1: Install or update the service definition, but DO NOT start it yet.
+    if IsServiceInstalled('{#ServiceName}') then
     begin
-      Log('Post-install step: User selected to install/update the Kolibri service...');
+      // Update existing service
+      Log('Service "{#ServiceName}" already exists. Updating configuration...');
+      Params := 'set "{#ServiceName}" Application "' + AppPath + '"';
+      ExecChecked(NssmPath, Params, '', 'Update Service Executable Path');
 
-      // Check if service exists to decide install vs update
-      if IsServiceInstalled('{#ServiceName}') then
-      begin
-        // Update existing service
-        Log('Service "{#ServiceName}" already exists. Updating configuration...');
-        Params := 'set "{#ServiceName}" Application "' + AppPath + '"';
-        ExecChecked(NssmPath, Params, '', 'Update Service Executable Path');
+      Params := 'set "{#ServiceName}" AppParameters "--run-as-server"';
+      ExecChecked(NssmPath, Params, '', 'Update Service Parameters');
 
-        Params := 'set "{#ServiceName}" AppParameters "--run-as-server"';
-        ExecChecked(NssmPath, Params, '', 'Update Service Parameters');
-
-        Params := 'set "{#ServiceName}" AppDirectory "' + AppDir + '"';
-        ExecChecked(NssmPath, Params, '', 'Update Service Working Directory');
-      end
-      else
-      begin
-        // Install new service
-        Log('Service "{#ServiceName}" not found. Performing fresh installation...');
-        Params := 'install "{#ServiceName}" "' + AppPath + '" --run-as-server';
-        ExecChecked(NssmPath, Params, '', 'Install {#ServiceName} Service');
-      end;
-
-      // Apply common service configuration
-      Log('Applying common service configuration...');
-      ExecChecked(NssmPath, 'set "{#ServiceName}" ObjectName "NT AUTHORITY\LocalService"', '', 'Set Service User to LocalService');
-
-      // Grant Modify access to service account
-      ExecChecked(ExpandConstant(ICACLS_EXE_PATH), '"' + ExpandConstant('{#KolibriDataDir}') + '" /grant "NT AUTHORITY\LocalService":(OI)(CI)M /T', '', 'Grant Permissions to Data Folder for Service');
-
-      // Grant Modify access to Users for UI app state/logs
-      ExecChecked(ExpandConstant(ICACLS_EXE_PATH), '"' + ExpandConstant('{#KolibriDataDir}') + '" /grant "Users":(OI)(CI)M /T', '', 'Grant Permissions to Data Folder for Users');
-
-      ExecChecked(NssmPath, 'set "{#ServiceName}" Start SERVICE_AUTO_START', '', 'Set Service Start Type to Automatic');
-      ExecChecked(ExpandConstant(SC_EXE_PATH), 'start "{#ServiceName}"', '', 'Start {#ServiceName} Service');
-      ExecChecked(NssmPath, 'set "{#ServiceName}" Description "This service runs the Kolibri server in the background"', '', 'Set Service Description');
-      Log('Service configuration completed successfully.');
+      Params := 'set "{#ServiceName}" AppDirectory "' + AppDir + '"';
+      ExecChecked(NssmPath, Params, '', 'Update Service Working Directory');
     end
     else
     begin
-      // Remove existing service if user unchecked service task
-      Log('Service task was not selected. Checking for pre-existing service to remove.');
-      if IsServiceInstalled('{#ServiceName}') then
-      begin
-        Log('Found existing service "{#ServiceName}". Stopping and removing it as requested by user.');
+      // Install new service
+      Log('Service "{#ServiceName}" not found. Performing fresh installation...');
+      Params := 'install "{#ServiceName}" "' + AppPath + '" --run-as-server';
+      ExecChecked(NssmPath, Params, '', 'Install {#ServiceName} Service');
+    end;
 
-        // Stop service (okay if it fails - may already be stopped)
-        Exec(ExpandConstant('{sys}\net.exe'), 'stop "{#ServiceName}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-        if ResultCode = 0 then
-          Log('Service stopped successfully.')
-        else
-          Log(Format('net stop command finished with exit code %d. This is acceptable if the service was not running.', [ResultCode]));
+    // STEP 2: Apply common service configuration and directory permissions.
+    // This is important so the migration step can write to the ProgramData folder.
+    Log('Applying common service configuration...');
+    ExecChecked(NssmPath, 'set "{#ServiceName}" ObjectName "NT AUTHORITY\LocalService"', '', 'Set Service User to LocalService');
+    ExecChecked(NssmPath, 'set "{#ServiceName}" Description "This service runs the Kolibri server in the background"', '', 'Set Service Description');
+    ExecChecked(ExpandConstant(ICACLS_EXE_PATH), '"' + ExpandConstant('{#KolibriDataDir}') + '" /grant "NT AUTHORITY\LocalService":(OI)(CI)M /T', '', 'Grant Permissions to Data Folder for Service');
+    ExecChecked(ExpandConstant(ICACLS_EXE_PATH), '"' + ExpandConstant('{#KolibriDataDir}') + '" /grant "Users":(OI)(CI)M /T', '', 'Grant Permissions to Data Folder for Users');
 
-        // Remove service definition (use ExecChecked - user should know if this fails)
-        ExecChecked(NssmPath, 'remove "{#ServiceName}" confirm', '', 'Remove {#ServiceName} Service');
-        Log('Service removed successfully.');
-      end
+    // STEP 3: Handle legacy migration and cleanup.
+    // This is now safe to do because the service has not started and the data directory is empty.
+    Log('Starting legacy migration and cleanup...');
+    TerminateLegacyApp();
+    MigrateLegacyUserData();
+    ForcefullyCleanUpLegacyApp();
+    Log('Data migration complete.');
+
+    // Conditionally set the service start type based on user selection
+    if (WizardIsTaskSelected('installservice')) then
+    begin
+      Log('User selected to enable the service. Setting to Auto-Start and starting it.');
+      ExecChecked(NssmPath, 'set "{#ServiceName}" Start SERVICE_AUTO_START', '', 'Set Service Start Type to Automatic');
+      ExecChecked(ExpandConstant(SC_EXE_PATH), 'start "{#ServiceName}"', '', 'Start {#ServiceName} Service');
+    end
+    else
+    begin
+      Log('User did not select to enable the service. Setting to Disabled.');
+      // Stop the service first, in case it was running from a previous installation.
+      Exec(ExpandConstant(SC_EXE_PATH), 'stop "{#ServiceName}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      if ResultCode = 0 then
+        Log('Service was running and has been stopped.')
       else
-      begin
-        Log('No pre-existing service found. No removal action needed.');
-      end;
+        Log(Format('sc stop finished with code %d. This is normal if the service was not running.', [ResultCode]));
+
+      // Set the service to be disabled.
+      ExecChecked(NssmPath, 'set "{#ServiceName}" Start SERVICE_DISABLED', '', 'Set Service Start Type to Disabled');
+    end;
+    Log('Service configuration completed successfully.');
+    // Add tray icon to startup if service is enabled
+    if (WizardIsTaskSelected('installservice')) then
+    begin
+      Log('Adding tray icon to startup for all users.');
+      // Add to HKLM Run key for all users
+      RegWriteStringValue(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run',
+        'KolibriTray', ExpandConstant('"{app}\{#AppExeName}" --tray-only'));
+    end
+    else
+    begin
+      // Remove from startup if exists
+      RegDeleteValue(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', 'KolibriTray');
     end;
   end;
 end;
