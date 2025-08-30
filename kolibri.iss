@@ -38,6 +38,38 @@ ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#AppExeName}
 SetupLogging=yes
 CloseApplicationsFilter={#AppExeName}
+ShowLanguageDialog=yes
+
+[Languages]
+Name: "en"; MessagesFile: "{#SourcePath}\Installer_Languages\English.isl"
+; Name: "ar"; MessagesFile: "{#SourcePath}\Installer_Languages\Arabic.isl"
+; Name: "bg"; MessagesFile: "{#SourcePath}\Installer_Languages\Bulgarian.isl"
+; Name: "bn"; MessagesFile: "{#SourcePath}\Installer_Languages\Bengali.isl"
+; Name: "my"; MessagesFile: "{#SourcePath}\Installer_Languages\Burmese.isl"
+; Name: "ny"; MessagesFile: "{#SourcePath}\Installer_Languages\Chewa.isl"
+; Name: "zh_CN"; MessagesFile: "{#SourcePath}\Installer_Languages\Chinese_Simplified.isl"
+Name: "de"; MessagesFile: "{#SourcePath}\Installer_Languages\German.isl"
+; Name: "fa"; MessagesFile: "{#SourcePath}\Installer_Languages\Persian.isl"
+; Name: "fr"; MessagesFile: "{#SourcePath}\Installer_Languages\French.isl"
+; Name: "fv"; MessagesFile: "{#SourcePath}\Installer_Languages\Fulfulde_Mbororoore.isl"
+; Name: "ka"; MessagesFile: "{#SourcePath}\Installer_Languages\Georgian.isl"
+; Name: "gu_IN"; MessagesFile: "{#SourcePath}\Installer_Languages\Gujarati.isl"
+; Name: "hi"; MessagesFile: "{#SourcePath}\Installer_Languages\Hindi.isl"
+; Name: "it"; MessagesFile: "{#SourcePath}\Installer_Languages\Italian.isl"
+; Name: "km"; MessagesFile: "{#SourcePath}\Installer_Languages\Khmer.isl"
+; Name: "ko"; MessagesFile: "{#SourcePath}\Installer_Languages\Korean.isl"
+; Name: "la"; MessagesFile: "{#SourcePath}\Installer_Languages\Spanish_Latin_America.isl"
+; Name: "mr"; MessagesFile: "{#SourcePath}\Installer_Languages\Marathi.isl"
+; Name: "ne_NP"; MessagesFile: "{#SourcePath}\Installer_Languages\Nepali.isl"
+; Name: "pt_BR"; MessagesFile: "{#SourcePath}\Installer_Languages\Portuguese_Brazilian.isl"
+; Name: "es_ES"; MessagesFile: "{#SourcePath}\Installer_Languages\Spanish.isl"
+; Name: "sw_TZ"; MessagesFile: "{#SourcePath}\Installer_Languages\Swahili_Tanzania.isl"
+; Name: "tl"; MessagesFile: "{#SourcePath}\Installer_Languages\Tagalog.isl"
+; Name: "te"; MessagesFile: "{#SourcePath}\Installer_Languages\Telugu.isl"
+; Name: "tr"; MessagesFile: "{#SourcePath}\Installer_Languages\Turkish.isl"
+; Name: "ur_PK"; MessagesFile: "{#SourcePath}\Installer_Languages\Urdu_(Pakistan).isl"
+; Name: "vi"; MessagesFile: "{#SourcePath}\Installer_Languages\Vietnamese.isl"
+; Name: "yo"; MessagesFile: "{#SourcePath}\Installer_Languages\Yoruba.isl"
 
 [Registry]
 ; This registry key is used to detect the installed version for upgrades/repairs.
@@ -47,7 +79,7 @@ Root: HKLM; Subkey: "Software\Kolibri"; ValueType: dword; ValueName: "ShowTrayIc
 Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueName: "KolibriTray"; Flags: uninsdeletevalue
 
 [Tasks]
-Name: "installservice"; Description: "Run Kolibri automatically when the computer starts"; GroupDescription: "Installation Type:";
+Name: "installservice"; Description: "{cm:InstallServiceTask}"; GroupDescription: "Installation Type:";
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}";
 
 [Dirs]
@@ -105,14 +137,14 @@ begin
       // if the process fails to launch
       Log(Format('ERROR: Failed to launch process for "%s". System Error: %s', [Description, SysErrorMessage(ResultCode)]));
       if not WizardSilent() then
-         MsgBox(Format('A critical error occurred while trying to run a setup command: %s.'#13#10'The installation cannot continue.', [Description]), mbError, MB_OK);
+         MsgBox(FmtMessage(CustomMessage('CriticalError'), [Description]), mbError, MB_OK);
       Abort;
    end;
    if ResultCode <> 0 then
    begin
       Log(Format('ERROR: Command "%s" failed with a non-zero exit code: %d.', [Description, ResultCode]));
       if not WizardSilent() then
-         MsgBox(Format('A command required for setup failed to execute correctly: %s.'#13#10'Error Code: %d'#13#10'The installation cannot continue.', [Description, ResultCode]), mbError, MB_OK);
+         MsgBox(FmtMessage(CustomMessage('CommandError'), [Description, IntToStr(ResultCode)]), mbError, MB_OK);
       Abort;
    end
    else
@@ -176,7 +208,7 @@ begin
       Log(Format('  -> Installer Version String: "%s"', [InstallerVersionString]));
       Log(Format('  -> Installed Version String: "%s"', [InstalledVersionString]));
       if not WizardSilent() then
-         MsgBox('Could not compare versions due to an invalid version format. Please uninstall the previous version manually and try again.', mbError, MB_OK);
+         MsgBox(CustomMessage('VersionParseError'), mbError, MB_OK);
       Result := False;
       Exit;
    end;
@@ -190,7 +222,7 @@ begin
    begin
       Log(Format('Downgrade detected. Installed version %s is newer than installer version %s. Aborting.', [InstalledVersionString, InstallerVersionString]));
       if not WizardSilent() then
-         MsgBox(Format('A newer version of {#AppName} (%s) is already installed.' + #13#10#13#10 + 'This installer contains version %s, which is older than the installed version.' + #13#10 + 'The setup will now exit.', [InstalledVersionString, InstallerVersionString]), mbInformation, MB_OK);
+         MsgBox(FmtMessage(CustomMessage('NewerVersionInstalled'), [InstalledVersionString, InstallerVersionString]), mbInformation, MB_OK);
       Result := False;
    end
    else if VersionDiff = 0 then
@@ -198,7 +230,7 @@ begin
       Log('Same version detected. Proposing a repair/reinstall.');
       if not WizardSilent() then
       begin
-         if MsgBox('This version of {#AppName} is already installed.' + #13#10#13#10 + 'Do you want to repair the installation by reinstalling it?', mbConfirmation, MB_YESNO) <> IDYES then
+         if MsgBox(CustomMessage('SameVersionInstalled'), mbConfirmation, MB_YESNO) <> IDYES then
             Result := False;
       end;
    end
@@ -207,7 +239,7 @@ begin
       Log('Older version detected. Proposing an upgrade.');
       if not WizardSilent() then
       begin
-         if MsgBox(Format('An older version of {#AppName} (%s) was detected.' + #13#10#13#10 + 'Do you want to upgrade to version {#AppVersion}?', [InstalledVersionString]), mbConfirmation, MB_YESNO) <> IDYES then
+         if MsgBox(FmtMessage(CustomMessage('OlderVersionInstalled'), [InstalledVersionString]), mbConfirmation, MB_YESNO) <> IDYES then
             Result := False;
       end;
    end;
@@ -371,8 +403,7 @@ begin
   // Default to NOT deleting user data unless the user explicitly agrees.
   g_DeleteUserData := False;
 
-  if MsgBox('Do you want to completely remove all Kolibri user data?' + #13#10 +
-    'This includes all downloaded content, user accounts, and progress, and cannot be undone.',
+  if MsgBox(CustomMessage('ConfirmUninstallData'),
     mbConfirmation, MB_YESNO) = IDYES then
   begin
     g_DeleteUserData := True;
