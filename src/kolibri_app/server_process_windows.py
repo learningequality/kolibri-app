@@ -1,12 +1,12 @@
 """Windows Server Subprocess Implementation
 
 This module implements the Kolibri server that runs as a separate subprocess on Windows.
-It uses a MagicBus plugin (`WindowsIpcPlugin`) integrated with `KolibriProcessBus`
+It uses a MagicBus plugin (`WindowsIpcPlugin`) integrated with `KolibriProcess`
 to manage Inter-Process Communication (IPC) with the main UI process via a named pipe.
 
 Architecture Overview:
 - The main UI process spawns this module as a subprocess with the --run-as-server flag.
-- `ServerProcess` initializes Kolibri and the `KolibriProcessBus`.
+- `run_windows_server()` creates a `KolibriProcess` and adds the Windows IPC plugin.
 - The `WindowsIpcPlugin` is subscribed to the bus. On its `START` event, it creates
   a named pipe and listens for a connection from the UI process in a background thread.
 - When the Kolibri server is ready, it fires a 'SERVING' event. The plugin
@@ -36,14 +36,10 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     sys.path.insert(0, os.path.join(sys._MEIPASS, "kolibrisrc"))
     sys.path.insert(0, os.path.join(sys._MEIPASS, "kolibrisrc", "kolibri", "dist"))
 
-from kolibri.main import initialize, enable_plugin
-from kolibri.plugins.app.utils import interface, SHARE_FILE
-from kolibri.utils.conf import OPTIONS
-from kolibri.utils.server import KolibriProcessBus
-from kolibri_app.logger import logging
+from kolibri.plugins.app.utils import interface
 
-# File sharing disabled to mirror original implementation
-share_file = None
+from kolibri_app.kolibri_process import KolibriProcess
+from kolibri_app.logger import logging
 
 # Named pipe for IPC between UI process and server subprocess
 # Uses Windows named pipe format: \\.<hostname>\pipe\<pipename>
@@ -274,58 +270,31 @@ class WindowsIpcPlugin(SimplePlugin):
         logging.info("Pipe server thread finished.")
 
 
-class ServerProcess:
+def run_windows_server():
     """
-    Main server process coordinator for Windows subprocess implementation.
-    Manages the Kolibri server initialization and runs it with the IPC plugin.
+    Entry point for Windows subprocess server.
+
+    Creates a KolibriProcess with the Windows IPC plugin for named pipe
+    communication with the main UI process. This function runs in a separate
+    subprocess spawned with the --run-as-server flag.
+
+    The server runs until terminated by the Job Object or explicit shutdown.
     """
+    try:
+        logging.info("Server process: Initializing Kolibri server...")
 
-    def __init__(self):
-        self.kolibri_server = None
+        # Create the unified Kolibri process
+        # enable_app_plugin=True is required for subprocess mode
+        kolibri_process = KolibriProcess(enable_app_plugin=True)
 
-    def _initialize_kolibri(self):
-        """
-        Initialize Kolibri with required plugins and configuration.
-        """
-        logging.info("Server process: Initializing Kolibri...")
-        enable_plugin("kolibri.plugins.app")
-        initialize()
-
-        # File sharing integration - intentionally disabled to mirror original implementation
-        # This check will always be False since share_file is None
-        if callable(share_file):
-            interface.register_capabilities(**{SHARE_FILE: share_file})
-
-    def _create_kolibri_server(self):
-        """
-        Create and configure the Kolibri server instance.
-        """
-        return KolibriProcessBus(
-            port=OPTIONS["Deployment"]["HTTP_PORT"],
-            zip_port=OPTIONS["Deployment"]["ZIP_CONTENT_PORT"],
-        )
-
-    def _setup_ipc_plugin(self):
-        """
-        Create and subscribe the IPC plugin to the server.
-        """
-        ipc_plugin = WindowsIpcPlugin(self.kolibri_server)
+        # Add Windows-specific IPC plugin for named pipe communication
+        ipc_plugin = WindowsIpcPlugin(kolibri_process)
         ipc_plugin.subscribe()
-        return ipc_plugin
 
-    def run(self):
-        """
-        Main server process entry point, initializes and runs Kolibri server.
-        The server runs until terminated by the Job Object or explicit shutdown.
-        """
-        try:
-            self._initialize_kolibri()
-            self.kolibri_server = self._create_kolibri_server()
-            self._setup_ipc_plugin()
+        logging.info("Server process: Starting Kolibri server...")
+        # Start serving, this blocks until shutdown
+        kolibri_process.run()
 
-            logging.info("Server process: Starting Kolibri server...")
-            # Start serving, this blocks until shutdown
-            self.kolibri_server.run()
-        except (ImportError, OSError, RuntimeError, ValueError) as e:
-            logging.error(f"Server process error: {e}", exc_info=True)
-            sys.exit(1)
+    except (ImportError, OSError, RuntimeError, ValueError) as e:
+        logging.error(f"Server process error: {e}", exc_info=True)
+        sys.exit(1)

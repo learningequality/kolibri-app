@@ -1,24 +1,27 @@
 from threading import Thread
 
-from kolibri.main import initialize
-from kolibri.plugins.app.utils import interface
-from kolibri.plugins.app.utils import SHARE_FILE
-from kolibri.utils.conf import OPTIONS
-from kolibri.utils.server import KolibriProcessBus
 from magicbus.plugins import SimplePlugin
 
+from kolibri_app.kolibri_process import KolibriProcess
 from kolibri_app.logger import logging
-
-share_file = None
 
 
 class AppPlugin(SimplePlugin):
+    """
+    MagicBus plugin for POSIX platforms that handles the SERVING event.
+
+    This plugin subscribes to the Kolibri server's SERVING event and invokes
+    a callback when the server is ready, allowing the UI to load Kolibri.
+    """
+
     def __init__(self, bus, callback):
-        self.bus = bus
+        super().__init__(bus)
         self.callback = callback
+        # Subscribe to SERVING event (not part of plugin.subscribe())
         self.bus.subscribe("SERVING", self.SERVING)
 
     def SERVING(self, port):
+        """Handle the SERVING event by invoking the callback with port info."""
         self.callback(port, root_url=None)
 
 
@@ -30,7 +33,7 @@ class PosixServerManager:
 
     def __init__(self, app):
         self.app = app
-        self.kolibri_server = None
+        self.kolibri_process = None
         self.server_thread = None
 
     def start(self):
@@ -43,17 +46,24 @@ class PosixServerManager:
         self.server_thread.start()
 
     def _run_kolibri_server(self):
-        initialize()
+        """
+        Runs the Kolibri server in a separate thread.
 
-        if callable(share_file):
-            interface.register_capabilities(**{SHARE_FILE: share_file})
-        self.kolibri_server = KolibriProcessBus(
-            port=OPTIONS["Deployment"]["HTTP_PORT"],
-            zip_port=OPTIONS["Deployment"]["ZIP_CONTENT_PORT"],
-        )
-        AppPlugin(self.kolibri_server, self.app.load_kolibri)
-        self.kolibri_server.run()
+        Creates a KolibriProcess with the AppPlugin for direct callback
+        communication. Since this runs in the same process as the main app,
+        enable_app_plugin is False (the plugin is already enabled by the main app).
+        """
+        # Create the unified Kolibri process
+        # enable_app_plugin=False since we're in the same process as main app
+        self.kolibri_process = KolibriProcess(enable_app_plugin=False)
+
+        # Add POSIX-specific plugin for direct callback communication
+        app_plugin = AppPlugin(self.kolibri_process, self.app.load_kolibri)
+        app_plugin.subscribe()
+
+        # Start serving, this blocks until shutdown
+        self.kolibri_process.run()
 
     def shutdown(self):
-        if self.kolibri_server is not None:
-            self.kolibri_server.transition("EXITED")
+        if self.kolibri_process is not None:
+            self.kolibri_process.transition("EXITED")
