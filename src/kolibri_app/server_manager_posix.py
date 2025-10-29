@@ -25,45 +25,49 @@ class AppPlugin(SimplePlugin):
         self.callback(port, root_url=None)
 
 
-class PosixServerManager:
+class PosixKolibriProcess(KolibriProcess):
     """
-    Manages the Kolibri server for non-Windows platforms (macOS, Linux)
-    by running it in a separate thread within the same process.
+    POSIX-specific Kolibri process that runs in a daemon thread.
+
+    This class inherits from KolibriProcess and adds the AppPlugin for
+    direct callback communication with the main application. It manages
+    its own threading to run the server in a separate thread within the
+    same process.
     """
 
     def __init__(self, app):
-        self.app = app
-        self.kolibri_process = None
+        """
+        Initialize the POSIX Kolibri process with app plugin.
+
+        Args:
+            app: The main KolibriApp instance to callback when server is ready
+
+        Note: enable_app_plugin=False since we're in the same process as the
+        main app which has already enabled the plugin.
+        """
+        super().__init__(enable_app_plugin=False)
+
+        # Add POSIX-specific plugin for direct callback communication
+        self.app_plugin = AppPlugin(self, app.load_kolibri)
+        self.app_plugin.subscribe()
+
         self.server_thread = None
 
     def start(self):
+        """
+        Start the Kolibri server in a daemon thread.
+
+        This method spawns a background thread that runs the server's
+        event loop, allowing the main thread to continue managing the UI.
+        """
         if self.server_thread:
             return
 
         logging.info("Preparing to start Kolibri server thread")
-        self.server_thread = Thread(target=self._run_kolibri_server)
+        self.server_thread = Thread(target=self.run)
         self.server_thread.daemon = True
         self.server_thread.start()
 
-    def _run_kolibri_server(self):
-        """
-        Runs the Kolibri server in a separate thread.
-
-        Creates a KolibriProcess with the AppPlugin for direct callback
-        communication. Since this runs in the same process as the main app,
-        enable_app_plugin is False (the plugin is already enabled by the main app).
-        """
-        # Create the unified Kolibri process
-        # enable_app_plugin=False since we're in the same process as main app
-        self.kolibri_process = KolibriProcess(enable_app_plugin=False)
-
-        # Add POSIX-specific plugin for direct callback communication
-        app_plugin = AppPlugin(self.kolibri_process, self.app.load_kolibri)
-        app_plugin.subscribe()
-
-        # Start serving, this blocks until shutdown
-        self.kolibri_process.run()
-
     def shutdown(self):
-        if self.kolibri_process is not None:
-            self.kolibri_process.transition("EXITED")
+        """Shutdown the Kolibri server by transitioning to EXITED state."""
+        self.transition("EXITED")

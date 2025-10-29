@@ -270,31 +270,24 @@ class WindowsIpcPlugin(SimplePlugin):
         logging.info("Pipe server thread finished.")
 
 
-def run_windows_server():
+class WindowsKolibriProcess(KolibriProcess):
     """
-    Entry point for Windows subprocess server.
+    Windows-specific Kolibri process with IPC plugin for named pipe communication.
 
-    Creates a KolibriProcess with the Windows IPC plugin for named pipe
-    communication with the main UI process. This function runs in a separate
-    subprocess spawned with the --run-as-server flag.
-
-    The server runs until terminated by the Job Object or explicit shutdown.
+    This class is used in the Windows server subprocess (spawned with --run-as-server).
+    It inherits from KolibriProcess and adds the WindowsIpcPlugin for communication
+    with the main UI process via named pipes.
     """
-    try:
-        logging.info("Server process: Initializing Kolibri server...")
 
-        # Create the unified Kolibri process
-        # enable_app_plugin=True is required for subprocess mode
-        kolibri_process = KolibriProcess(enable_app_plugin=True)
+    def __init__(self):
+        """
+        Initialize the Windows Kolibri process with IPC plugin.
+
+        enable_app_plugin=True is required for subprocess mode since the plugin
+        is not yet enabled when running in a separate process.
+        """
+        super().__init__(enable_app_plugin=True)
 
         # Add Windows-specific IPC plugin for named pipe communication
-        ipc_plugin = WindowsIpcPlugin(kolibri_process)
-        ipc_plugin.subscribe()
-
-        logging.info("Server process: Starting Kolibri server...")
-        # Start serving, this blocks until shutdown
-        kolibri_process.run()
-
-    except (ImportError, OSError, RuntimeError, ValueError) as e:
-        logging.error(f"Server process error: {e}", exc_info=True)
-        sys.exit(1)
+        self.ipc_plugin = WindowsIpcPlugin(self)
+        self.ipc_plugin.subscribe()
