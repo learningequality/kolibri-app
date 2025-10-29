@@ -1,6 +1,7 @@
 import atexit
 import json
 import os
+import subprocess
 import webbrowser
 
 import wx
@@ -8,6 +9,8 @@ from kolibri.main import enable_plugin
 from kolibri.utils.conf import KOLIBRI_HOME
 
 from kolibri_app.constants import APP_NAME
+from kolibri_app.constants import LINUX
+from kolibri_app.constants import MAC
 from kolibri_app.constants import WINDOWS
 from kolibri_app.logger import logging
 from kolibri_app.view import KolibriView
@@ -215,7 +218,14 @@ class KolibriApp(wx.App):
             and url.startswith("http")
             and not url.startswith("http://localhost")
         ):
-            webbrowser.open(url)
+            # Open external URLs in the default browser using platform-specific methods
+            # for better reliability, especially on macOS where webbrowser.open() can fail
+            if WINDOWS:
+                webbrowser.open(url)
+            elif MAC:
+                subprocess.call(["open", url])
+            elif LINUX:
+                subprocess.call(["xdg-open", url])
             return False
 
         return True
