@@ -9,10 +9,10 @@ files = ["dist/Kolibri.app"]
 
 # Where to put the icons
 icon_locations = {
-    "Kolibri.app": (185, 120),
-    "Applications": (550, 120),
+    "Kolibri.app": (180, 250),
+    "Applications": (480, 250),
 }
 
 background = "src/kolibri_app/icons/Layout.png"
 
-window_rect = ((0, 1000), (734, 550))
+window_rect = ((0, 1000), (660, 400))
