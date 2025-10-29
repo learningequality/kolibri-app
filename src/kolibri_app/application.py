@@ -20,7 +20,7 @@ if WINDOWS:
     import win32gui
     import ctypes
 else:
-    from kolibri_app.server_manager_posix import PosixServerManager as ServerManager
+    from kolibri_app.server_manager_posix import PosixKolibriProcess as ServerManager
     from kolibri.plugins.app.utils import interface
 
 STATE_FILE = "app_state.json"
