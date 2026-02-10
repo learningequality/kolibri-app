@@ -32,7 +32,7 @@ setup(
     license="MIT",
     install_requires=[
         "wxPython==4.2.2",
-        "cryptography==45.0.7",
+        "cryptography==46.0.5",
         "cffi==1.14.4",
         "pywin32==311; sys_platform == 'win32'",
     ],
