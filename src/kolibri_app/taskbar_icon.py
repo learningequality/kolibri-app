@@ -17,6 +17,7 @@ import pywintypes
 import win32service
 import winerror
 import wx
+from wx.adv import NotificationMessage
 from wx.adv import TaskBarIcon
 
 from kolibri_app.constants import APP_NAME
@@ -78,11 +79,15 @@ class KolibriTaskBarIcon(TaskBarIcon):
     def __init__(self, app):
         super(KolibriTaskBarIcon, self).__init__()
         self.app = app
-        self.server_starting_notified = (
-            False  # Track if we've shown the starting notification
-        )
+        # Track if we've shown the starting notification
+        self.server_starting_notified = False
 
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.on_left_click)
+
+        # Cached icon used for notifications
+        self._tray_icon = None
+        # Keep reference alive while shown
+        self._last_notification = None
 
         self.set_icon(TRAY_ICON_ICO, f"{APP_NAME}")
 
@@ -97,6 +102,7 @@ class KolibriTaskBarIcon(TaskBarIcon):
 
             icon = wx.Icon(final_path, wx.BITMAP_TYPE_ICO)
             self.SetIcon(icon, tooltip)
+            self._tray_icon = icon
         except (FileNotFoundError, wx.wxAssertionError, OSError) as e:
             logging.error(f"Error setting icon from path '{final_path}': {e}")
 
@@ -109,13 +115,54 @@ class KolibriTaskBarIcon(TaskBarIcon):
             message: The notification message
             timeout: How long to show the notification (in seconds)
         """
-        try:
-            # Create notification
-            self.ShowBalloon(title, message, timeout * 1000)
+        notification = NotificationMessage(title, message)
+        notification.UseTaskBarIcon(self)
 
-        except (ImportError, AttributeError, OSError) as e:
-            logging.error(f"Failed to show notification: {e}")
-            # Fallback to a simple message box if notifications fail
+        if self._tray_icon is not None:
+            try:
+                notification.SetIcon(self._tray_icon)
+            except wx.wxAssertionError as icon_error:
+                logging.error(f"Failed to attach icon to notification: {icon_error}")
+
+        self._last_notification = notification
+
+        try:
+            shown = notification.Show(timeout=self._notification_timeout(timeout))
+            if not shown:
+                logging.error("NotificationMessage.Show returned False; using fallback")
+                self._show_legacy_notification(title, message, timeout)
+        except (RuntimeError, wx.wxAssertionError) as notification_error:
+            logging.error(
+                f"Failed to show notification with NotificationMessage: {notification_error}"
+            )
+            self._show_legacy_notification(title, message, timeout)
+
+    def _notification_timeout(self, timeout_seconds):
+        """Translate seconds to wx.NotificationMessage timeout constants."""
+        if timeout_seconds is None:
+            return NotificationMessage.Timeout_Default
+        if timeout_seconds <= 0:
+            return NotificationMessage.Timeout_Auto
+        if timeout_seconds >= 10:
+            return NotificationMessage.Timeout_Long
+        return NotificationMessage.Timeout_Default
+
+    def _show_legacy_notification(self, title, message, timeout_seconds):
+        """Fallback to legacy balloon notifications when rich notifications fail."""
+        if timeout_seconds is None:
+            timeout_seconds = DEFAULT_NOTIFICATION_TIMEOUT
+        try:
+            timeout_ms = int(max(timeout_seconds, DEFAULT_NOTIFICATION_TIMEOUT) * 1000)
+            self.ShowBalloon(title, message, timeout_ms)
+        except (
+            AttributeError,
+            OSError,
+            TypeError,
+            wx.wxAssertionError,
+        ) as balloon_error:
+            logging.error(
+                f"Failed to show legacy balloon notification: {balloon_error}"
+            )
             wx.CallAfter(wx.MessageBox, message, title, wx.OK | wx.ICON_INFORMATION)
 
     def notify_server_starting(self):
