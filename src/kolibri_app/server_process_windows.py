@@ -17,6 +17,7 @@ Architecture Overview:
 """
 import json
 import os
+import secrets
 import sys
 import time
 from threading import Event
@@ -84,8 +85,16 @@ class WindowsIpcPlugin(SimplePlugin):
         """
         Construct the server URLs based on the port.
         """
+        from kolibri_app.kolibri_plugin import KolibriAppGetOSUserHook
+
         kolibri_origin = f"http://localhost:{port}"
-        root_url = kolibri_origin + app_initialize_url()
+        # Per-launch shared secret. The token round-trips through
+        # InitializeAppView (URL query) -> APP_AUTH_TOKEN_COOKIE -> provisioning
+        # validator -> GetOSUserHook, which compares it against this expected
+        # value.
+        auth_token = secrets.token_urlsafe(32)
+        KolibriAppGetOSUserHook.expected_auth_token = auth_token
+        root_url = kolibri_origin + app_initialize_url(auth_token=auth_token)
         return kolibri_origin, root_url
 
     def on_server_start(self, port):
