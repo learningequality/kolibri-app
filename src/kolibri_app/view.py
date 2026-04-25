@@ -16,7 +16,14 @@ from kolibri_app.i18n import _
 from kolibri_app.i18n import locale_info
 from kolibri_app.logger import logging
 
+if WINDOWS:
+    from kolibri_app import webview2_native
+
 LOADER_PAGE = "loading.html"
+
+# JS->Python bridge for hijacking window.print() on Windows; see __init__.
+BRIDGE_NAME = "kolibriBridge"
+BRIDGE_MSG_PRINT = "print"
 
 ZOOM_LEVELS = [
     html2.WEBVIEW_ZOOM_TINY,
@@ -69,6 +76,29 @@ class KolibriView(object):
         self.webview = html2.WebView.New(self.view, backend=backend)
         self.webview.Bind(html2.EVT_WEBVIEW_NAVIGATING, self.OnBeforeLoad)
         self.webview.Bind(html2.EVT_WEBVIEW_LOADED, self.OnLoadComplete)
+
+        self._print_pending = False
+
+        if WINDOWS:
+            # JS-initiated window.print() is a no-op in WebView2 hosted via
+            # wxPython's html2 backend; intercept and route to
+            # ICoreWebView2_16::ShowPrintUI via webview2_native. Other backends
+            # surface window.print() to a real dialog without help.
+            if self.webview.AddScriptMessageHandler(BRIDGE_NAME):
+                self.webview.AddUserScript(
+                    f"window.print = function () {{"
+                    f" window.{BRIDGE_NAME}.postMessage('{BRIDGE_MSG_PRINT}');"
+                    f"}};",
+                    injectionTime=html2.WEBVIEW_INJECT_AT_DOCUMENT_START,
+                )
+                self.webview.Bind(
+                    html2.EVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED,
+                    self.OnScriptMessage,
+                )
+            else:
+                logging.warning(
+                    f"Failed to register {BRIDGE_NAME} script handler"
+                )
 
         if url is None:
             # If no URL is provided, show the loading screen directly.
@@ -143,6 +173,12 @@ class KolibriView(object):
         view_menu.AppendSeparator()
         self.add_menu_item(
             view_menu, _("Open in Browser"), handler=self.on_open_in_browser
+        )
+        self.add_menu_item(
+            view_menu,
+            _("Print\tCtrl+P"),
+            handler=lambda evt: self.show_print_dialog(),
+            item_id=wx.ID_PRINT,
         )
         menu_bar.Append(view_menu, _("View"))
 
@@ -223,6 +259,32 @@ class KolibriView(object):
     def OnBeforeLoad(self, event):
         if not self.app.should_load_url(event.URL):
             event.Veto()
+
+    def OnScriptMessage(self, event):
+        message = event.GetString()
+        if message == BRIDGE_MSG_PRINT:
+            # Defer so we leave the WebView2 message callback before re-entering
+            # the COM object. Coalesce rapid-fire calls (e.g. JS in a loop) so
+            # we only enqueue one dialog.
+            if self._print_pending:
+                return
+            self._print_pending = True
+            wx.CallAfter(self.show_print_dialog)
+        else:
+            logging.warning(f"Unhandled {BRIDGE_NAME} message: {message!r}")
+
+    def show_print_dialog(self):
+        self._print_pending = False
+        if WINDOWS:
+            try:
+                webview2_native.show_print_ui(
+                    self.webview.GetNativeBackend(),
+                    webview2_native.PRINT_DIALOG_KIND_BROWSER,
+                )
+            except OSError as e:
+                logging.warning(f"Native ShowPrintUI failed: {e}")
+        else:
+            self.webview.Print()
 
     def OnLoadComplete(self, event):
         # Make sure that any attempts to use back functionality don't take us back to the loading screen
