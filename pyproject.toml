@@ -20,7 +20,7 @@ dependencies = [
 build = [
     "wheel",
     "pkginfo",
-    "pyinstaller==6.20.0",
+    "pyinstaller==6.21.0",
     "dmgbuild==1.6.7; sys_platform == 'darwin'",
     "attrdict==2.0.1",
     "polib==1.2.0",
