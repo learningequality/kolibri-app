@@ -1,3 +1,5 @@
+# This repository has been archived! The desktop app has been moved to the [Kolibri monorepo](https://github.com/learningequality/kolibri/tree/develop/platforms/desktop-app)
+
 # Kolibri WX PyInstaller App
 Cross-platform Kolibri app
 
